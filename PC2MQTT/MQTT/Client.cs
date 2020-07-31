@@ -1,5 +1,4 @@
 ﻿using ExtensionMethods;
-using PC2MQTT.Helpers;
 using System;
 using System.Text;
 using System.Timers;
@@ -8,71 +7,51 @@ using uPLibrary.Networking.M2Mqtt.Messages;
 
 namespace PC2MQTT.MQTT
 {
-    public delegate void MessageReceivedString(string topic, string message);
-
     public delegate void MessageReceivedByte(string topic, byte[] message);
 
-    public delegate void MqttMessagePublished(string topic, string message);
-
-    public delegate void MqttTopicSubscribed(string topic);
-
-    public delegate void MqttTopicUnsubscribed(string topic);
+    public delegate void MessageReceivedString(string topic, string message);
 
     public delegate void MqttConnectionClosed(string reason, byte errorCode);
 
     public delegate void MqttConnectionConnected();
 
+    public delegate void MqttMessagePublished(string topic, string message);
+
     public delegate void MqttReconnecting();
 
-    public class MqttSettings
-    {
-        public string broker = "";
-        public int port = 1883;
-        public string user = "";
-        public string password = "";
-        public string deviceId = "PC2MQTT";
-        public byte publishQosLevel = 2;
-        public byte subscribeQosLevel = 2;
-        public int reconnectInterval = 10000;
-        public MqttWill will = new MqttWill();
-    }
+    public delegate void MqttTopicSubscribed(string topic);
 
-    public class MqttWill
-    {
-        public bool enabled = true; // WillFlag
-        public bool retain = true;
-        public byte qosLevel = 2;
-        public ushort keepAlive = 60000;
-        public string topic = "/status";
-        public string offlineMessage = "Offline";
-        public string onlineMessage = "Online";
-    }
+    public delegate void MqttTopicUnsubscribed(string topic);
 
     public class Client
     {
-        private MqttClient client;
-        private MqttSettings _mqttSettings;
-        private bool _autoReconnect;
-        private bool _reconnectTimerStarted;
-        public bool IsConnected => client.IsConnected;
-
-        public event MessageReceivedString MessageReceivedString;
-
-        public event MessageReceivedByte MessageReceivedByte;
-
-        public event MqttMessagePublished MessagePublished;
-
-        public event MqttTopicSubscribed TopicSubscribed;
-
-        public event MqttTopicUnsubscribed TopicUnsubscribed;
-
         public event MqttConnectionClosed ConnectionClosed;
 
         public event MqttConnectionConnected ConnectionConnected;
 
         public event MqttReconnecting ConnectionReconnecting;
 
+        public event MqttMessagePublished MessagePublished;
+
+        public event MessageReceivedByte MessageReceivedByte;
+
+        public event MessageReceivedString MessageReceivedString;
+
+        public event MqttTopicSubscribed TopicSubscribed;
+
+        public event MqttTopicUnsubscribed TopicUnsubscribed;
+
+        public bool IsConnected => client.IsConnected;
+
+        private bool _autoReconnect;
+
+        private MqttSettings _mqttSettings;
+
         private Timer _reconnectTimer;
+
+        private bool _reconnectTimerStarted;
+
+        private MqttClient client;
 
         public Client(MqttSettings mqttSettings, bool autoReconnect = true)
         {
@@ -97,23 +76,16 @@ namespace PC2MQTT.MQTT
                         MqttConnect();
                     }
                 };
-
             }
-        }
-
-        private void Client_ConnectionClosed(object sender, EventArgs e)
-        {
-            ConnectionClosed?.Invoke("Connection closed", 99);
         }
 
         public void MqttConnect()
         {
-
-            if ((_autoReconnect) && (!_reconnectTimerStarted)) { 
+            if ((_autoReconnect) && (!_reconnectTimerStarted))
+            {
                 _reconnectTimer.Start();
                 _reconnectTimerStarted = true;
             }
-
 
             if (client.IsConnected)
                 client.Disconnect();
@@ -178,16 +150,6 @@ namespace PC2MQTT.MQTT
             return messageId;
         }
 
-        public ushort Unubscribe(string topic, bool prependDeviceId = true)
-        {
-            
-            var messageId = client.Unsubscribe(new string[] { topic.ResultantTopic(prependDeviceId) });
-
-            if (messageId > 0) TopicUnsubscribed?.Invoke(topic);
-
-            return messageId;
-        }
-
         public ushort Subscribe(string[] topics, bool prependDeviceId = true)
         {
             string topicsString = String.Join(", ", topics);
@@ -203,11 +165,48 @@ namespace PC2MQTT.MQTT
             return messageId;
         }
 
+        public ushort Unubscribe(string topic, bool prependDeviceId = true)
+        {
+            var messageId = client.Unsubscribe(new string[] { topic.ResultantTopic(prependDeviceId) });
+
+            if (messageId > 0) TopicUnsubscribed?.Invoke(topic);
+
+            return messageId;
+        }
+
+        private void Client_ConnectionClosed(object sender, EventArgs e)
+        {
+            ConnectionClosed?.Invoke("Connection closed", 99);
+        }
+
         private void Client_MqttMsgPublishReceived(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishEventArgs e)
         {
             MessageReceivedByte?.Invoke(e.Topic.ResultantTopic(false), e.Message);
             MessageReceivedString?.Invoke(e.Topic.ResultantTopic(false), Encoding.UTF8.GetString(e.Message));
         }
+    }
 
+    public class MqttSettings
+    {
+        public string broker = "";
+        public string deviceId = "PC2MQTT";
+        public string password = "";
+        public int port = 1883;
+        public byte publishQosLevel = 2;
+        public int reconnectInterval = 10000;
+        public byte subscribeQosLevel = 2;
+        public string user = "";
+        public MqttWill will = new MqttWill();
+    }
+
+    public class MqttWill
+    {
+        public bool enabled = true; // WillFlag
+        public ushort keepAlive = 60000;
+        public string offlineMessage = "Offline";
+        public string onlineMessage = "Online";
+        public byte qosLevel = 2;
+        public bool retain = true;
+        public string topic = "/status";
     }
 }

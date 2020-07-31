@@ -1,7 +1,4 @@
-﻿using PC2MQTT.Helpers;
-using PC2MQTT.MQTT;
-using PC2MQTT.Sensors;
-using BadLogger;
+﻿using BadLogger;
 using System;
 using System.Runtime.InteropServices;
 using System.Timers;
@@ -10,13 +7,29 @@ namespace PC2MQTT.Sensors
 {
     public class Uptime : PC2MQTT.Sensors.ISensor
     {
-        public string GetSensorIdentifier() => this.GetType().Name; // Should return "Uptime". You can specify it here as a string manually, though.
         public bool IsInitialized { get; set; }
+
         public SensorHost sensorHost { get; set; }
 
-        public bool DidSensorCompile() => true;
+        private Timer fiveSeconds;
+
         private BadLogger.BadLogger Log;
-        Timer fiveSeconds;
+
+        public static TimeSpan GetUpTime()
+        {
+            return TimeSpan.FromMilliseconds(GetTickCount64());
+        }
+
+        public bool DidSensorCompile() => true;
+
+        public void Dispose()
+        {
+            Log.Debug($"Disposing [{GetSensorIdentifier()}]");
+            Uninitialize();
+            GC.SuppressFinalize(this);
+        }
+
+        public string GetSensorIdentifier() => this.GetType().Name; // Should return "Uptime". You can specify it here as a string manually, though.
 
         public bool Initialize(SensorHost sensorHost)
         {
@@ -37,7 +50,6 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
-
         public void ProcessMessage(string topic, string message)
         {
             Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{topic}]");
@@ -51,7 +63,6 @@ namespace PC2MQTT.Sensors
             {
                 Log.Info("Received uptime message: " + message + "ms");
             }
-
         }
 
         public void Uninitialize()
@@ -60,21 +71,7 @@ namespace PC2MQTT.Sensors
             fiveSeconds.Dispose();
         }
 
-        public void Dispose()
-        {
-            Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            Uninitialize();
-            GC.SuppressFinalize(this);
-        }
-
-
-        public static TimeSpan GetUpTime()
-        {
-            return TimeSpan.FromMilliseconds(GetTickCount64());
-        }
-
         [DllImport("kernel32")]
-        extern static UInt64 GetTickCount64();
-
+        private static extern UInt64 GetTickCount64();
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using PC2MQTT.MQTT;
-using PC2MQTT.Sensors;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,14 +10,12 @@ namespace PC2MQTT.Helpers
     {
         // no ssl support cause i ain't use it :(
 
-        public bool minimizeAtLaunch = true;
-        public bool enableLogging = true;
-        public bool logToConsole = true;
-        public string logLevel = "INFO";
-
-        public MqttSettings mqttSettings = new MqttSettings();
         public List<string> enabledSensors = new List<string>();
-
+        public bool enableLogging = true;
+        public string logLevel = "INFO";
+        public bool logToConsole = true;
+        public bool minimizeAtLaunch = true;
+        public MqttSettings mqttSettings = new MqttSettings();
         //public int screenshotServerPort = 8081;
         //public int webcamServerPort = 8080;
         //public webcamToStream;
@@ -44,9 +41,8 @@ namespace PC2MQTT.Helpers
                     config = loaded;
                     return true;
                 }
-
             }
-            catch 
+            catch
             {
                 //Logging.Log($"Unable to load settings file {fileName}: {ex.Message}");
             }

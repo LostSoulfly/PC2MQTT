@@ -7,31 +7,38 @@ namespace PC2MQTT
 {
     internal class Program
     {
-        public static Settings settings = new Settings();
+        public static readonly string Version = "0.1.0-dev";
         public static MQTT.Client client;
         public static SensorManager sensorManager;
+        public static Settings settings = new Settings();
         private static BadLogger.BadLogger Log;
-        public static readonly string Version = "0.1.0-dev";
 
-        private static void Main(string[] args)
+        private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
-            Console.WriteLine($"PC2MQTT v{Version} starting");
+            Log.Warn($"Connection to MQTT server {settings.config.mqttSettings.broker} closed: {reason}");
+        }
 
-            InitializeSettings();
-            InitializeExtensions();
+        private static void Client_ConnectionConnected()
+        {
+            Log.Info($"Connected to MQTT server {settings.config.mqttSettings.broker}");
+        }
 
-            Logging.InitializeLogging(settings);
-            Log = LogManager.GetCurrentClassLogger();
+        private static void Client_MessagePublished(string topic, string message)
+        {
+        }
 
-            InitializeMqtt();
-            InitializeSensors();
-            
-            while(Console.ReadKey().Key != ConsoleKey.Escape) 
-            {
-                System.Threading.Thread.Sleep(1);
-            }
+        private static void Client_MessageReceivedString(string topic, string message)
+        {
+            Log.Trace($"Message received for [{topic}]: {message}");
+            sensorManager.ProcessMessage(topic, message);
+        }
 
-            Environment.Exit(0);
+        private static void Client_TopicSubscribed(string topic)
+        {
+        }
+
+        private static void Client_TopicUnsubscribed(string topic)
+        {
         }
 
         private static void InitializeExtensions()
@@ -39,31 +46,8 @@ namespace PC2MQTT
             ExtensionMethods.Extensions.deviceId = settings.config.mqttSettings.deviceId;
         }
 
-        private static void InitializeSensors()
-        {
-            // Initialize sensor handlers and map topics for them
-
-            sensorManager = new SensorManager(client, settings);
-
-            var available = sensorManager.LoadSensorScripts();
-
-
-            if (settings.config.enabledSensors.Count == 0)
-            {
-                Log.Info("No sensors enabled, enabling all found sensors..");
-                settings.config.enabledSensors = available;
-                settings.SaveSettings();
-            }
-
-            var loaded = sensorManager.InitializeSensors(settings.config.enabledSensors);
-
-            Log.Info($"Loaded {loaded} out of {available.Count} sensors.");
-
-        }
-
         private static void InitializeMqtt()
         {
-
             if (settings.config.mqttSettings.broker.Length == 0 || settings.config.mqttSettings.port == 0)
             {
                 Log.Fatal("Unable to initialized MQTT, missing connection details!");
@@ -83,37 +67,24 @@ namespace PC2MQTT
             client.MqttConnect();
         }
 
-        private static void Client_TopicUnsubscribed(string topic)
+        private static void InitializeSensors()
         {
-            
-        }
+            // Initialize sensor handlers and map topics for them
 
-        private static void Client_TopicSubscribed(string topic)
-        {
-            
-        }
+            sensorManager = new SensorManager(client, settings);
 
-        private static void Client_MessagePublished(string topic, string message)
-        {
-            
-        }
+            var available = sensorManager.LoadSensorScripts();
 
-        private static void Client_MessageReceivedString(string topic, string message)
-        {
-            Log.Trace($"Message received for [{topic}]: {message}");
-            sensorManager.ProcessMessage(topic, message);
+            if (settings.config.enabledSensors.Count == 0)
+            {
+                Log.Info("No sensors enabled, enabling all found sensors..");
+                settings.config.enabledSensors = available;
+                settings.SaveSettings();
+            }
 
-        }
+            var loaded = sensorManager.InitializeSensors(settings.config.enabledSensors);
 
-        private static void Client_ConnectionConnected()
-        {
-            Log.Info($"Connected to MQTT server {settings.config.mqttSettings.broker}");
-        }
-
-        private static void Client_ConnectionClosed(string reason, byte errorCode)
-        {
-
-            Log.Warn($"Connection to MQTT server {settings.config.mqttSettings.broker} closed: {reason}");
+            Log.Info($"Loaded {loaded} out of {available.Count} sensors.");
         }
 
         private static void InitializeSettings()
@@ -124,6 +95,27 @@ namespace PC2MQTT
                 Console.WriteLine("Generating default settings. Please edit config.json and re-launch the program.");
                 Environment.Exit(0);
             }
+        }
+
+        private static void Main(string[] args)
+        {
+            Console.WriteLine($"PC2MQTT v{Version} starting");
+
+            InitializeSettings();
+            InitializeExtensions();
+
+            Logging.InitializeLogging(settings);
+            Log = LogManager.GetCurrentClassLogger();
+
+            InitializeMqtt();
+            InitializeSensors();
+
+            while (Console.ReadKey().Key != ConsoleKey.Escape)
+            {
+                System.Threading.Thread.Sleep(1);
+            }
+
+            Environment.Exit(0);
         }
     }
 }
