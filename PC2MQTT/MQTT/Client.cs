@@ -23,7 +23,7 @@ namespace PC2MQTT.MQTT
 
     public delegate void MqttTopicUnsubscribed(string topic);
 
-    public class Client
+    public class Client : IClient
     {
         public event MqttConnectionClosed ConnectionClosed;
 
@@ -184,10 +184,12 @@ namespace PC2MQTT.MQTT
             MessageReceivedByte?.Invoke(e.Topic.ResultantTopic(false), e.Message);
             MessageReceivedString?.Invoke(e.Topic.ResultantTopic(false), Encoding.UTF8.GetString(e.Message));
         }
+
     }
 
     public class MqttSettings
     {
+        public bool useFakeMqttServer = false;
         public string broker = "";
         public string deviceId = "PC2MQTT";
         public string password = "";

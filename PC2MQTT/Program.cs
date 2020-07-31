@@ -1,5 +1,6 @@
 ﻿using BadLogger;
 using PC2MQTT.Helpers;
+using PC2MQTT.MQTT;
 using PC2MQTT.Sensors;
 using System;
 
@@ -8,7 +9,7 @@ namespace PC2MQTT
     internal class Program
     {
         public static readonly string Version = "0.1.0-dev";
-        public static MQTT.Client client;
+        public static IClient client;
         public static SensorManager sensorManager;
         public static Settings settings = new Settings();
         private static BadLogger.BadLogger Log;
@@ -55,7 +56,11 @@ namespace PC2MQTT
             }
 
             Log.Debug($"Initializing MQTT client..");
-            client = new MQTT.Client(settings.config.mqttSettings, true);
+
+            if (true)
+                client = new FakeClient(settings.config.mqttSettings);
+            else
+                client = new MQTT.Client(settings.config.mqttSettings, true);
 
             client.ConnectionClosed += Client_ConnectionClosed;
             client.ConnectionConnected += Client_ConnectionConnected;

@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy $(ProjectDir)\Sensors\Scripts\*.cs $(TargetDir)\Sensors\*" />
+    <Exec Command="mkdir $(TargetDir)Sensors\&#xD;&#xA;copy $(ProjectDir)Sensors\Scripts\*.cs $(TargetDir)Sensors\*" />
   </Target>
 
 </Project>

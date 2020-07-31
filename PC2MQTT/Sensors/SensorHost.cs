@@ -16,14 +16,14 @@ namespace PC2MQTT.Sensors
         public bool IsCompiled { get; private set; }
         public ISensor sensor { get; private set; }
         public string SensorIdentifier { get; private set; }
-        private Client _client;
+        private IClient _client;
         private string _deviceId;
         private bool _hasBeendisposed;
 
         private SensorManager _sensorManager;
         private BadLogger.BadLogger Log;
 
-        public SensorHost(string code, string deviceId, Client client, SensorManager sensorManager)
+        public SensorHost(string code, string deviceId, IClient client, SensorManager sensorManager)
         {
             this.code = code;
             this._deviceId = deviceId;
@@ -36,7 +36,7 @@ namespace PC2MQTT.Sensors
             Compile();
         }
 
-        public SensorHost(string deviceId, Client client, SensorManager sensorManager)
+        public SensorHost(string deviceId, IClient client, SensorManager sensorManager)
         {
             this._deviceId = deviceId;
             this._client = client;
@@ -101,8 +101,9 @@ namespace PC2MQTT.Sensors
         {
             topic = topic.ResultantTopic(prependDeviceId);
 
+            Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}]");
+
             var success = _client.Publish(topic, message, prependDeviceId, retain);
-            Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}] ({success})");
 
             if (success > 0) return true;
 

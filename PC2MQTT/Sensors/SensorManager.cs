@@ -12,7 +12,7 @@ namespace PC2MQTT.Sensors
     public class SensorManager
     {
         public List<SensorHost> sensors = new List<SensorHost>();
-        private Client _client;
+        private IClient _client;
         private object _dictMultiLock = new object();
 
         // Lock objects to be safe, regular dictionry isn't threadsafe
@@ -25,7 +25,7 @@ namespace PC2MQTT.Sensors
         private Dictionary<string, SensorHost> sensorSingleLevelWildcardTopics;
         private ConcurrentDictionary<string, SensorHost> sensorTopics;
 
-        public SensorManager(Client client, Helpers.Settings settings)
+        public SensorManager(IClient client, Helpers.Settings settings)
         {
             this._client = client;
             this._settings = settings;
