@@ -57,7 +57,7 @@ namespace PC2MQTT
 
             Log.Debug($"Initializing MQTT client..");
 
-            if (true)
+            if (settings.config.mqttSettings.useFakeMqttServer)
                 client = new FakeClient(settings.config.mqttSettings);
             else
                 client = new MQTT.Client(settings.config.mqttSettings, true);
