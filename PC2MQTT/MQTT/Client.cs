@@ -1,4 +1,5 @@
-﻿using PC2MQTT.Helpers;
+﻿using ExtensionMethods;
+using PC2MQTT.Helpers;
 using System;
 using System.Text;
 using System.Timers;
@@ -7,15 +8,15 @@ using uPLibrary.Networking.M2Mqtt.Messages;
 
 namespace PC2MQTT.MQTT
 {
-    public delegate void MessageReceivedString(string message, string topic);
+    public delegate void MessageReceivedString(string topic, string message);
 
-    public delegate void MessageReceivedByte(byte message, string topic);
+    public delegate void MessageReceivedByte(string topic, byte[] message);
 
-    public delegate void MqttMessagePublished(ushort messageId, bool isPublished);
+    public delegate void MqttMessagePublished(string topic, string message);
 
-    public delegate void MqttTopicSubscribed(ushort messageId);
+    public delegate void MqttTopicSubscribed(string topic);
 
-    public delegate void MqttTopicUnsubscribed(ushort messageId);
+    public delegate void MqttTopicUnsubscribed(string topic);
 
     public delegate void MqttConnectionClosed(string reason, byte errorCode);
 
@@ -81,9 +82,6 @@ namespace PC2MQTT.MQTT
             client = new MqttClient(_mqttSettings.broker, _mqttSettings.port, false, null, null, MqttSslProtocols.None);
 
             client.MqttMsgPublishReceived += Client_MqttMsgPublishReceived;
-            client.MqttMsgPublished += Client_MqttMsgPublished;
-            client.MqttMsgSubscribed += Client_MqttMsgSubscribed;
-            client.MqttMsgUnsubscribed += Client_MqttMsgUnsubscribed;
             client.ConnectionClosed += Client_ConnectionClosed;
 
             string clientId = _mqttSettings.deviceId;
@@ -123,11 +121,11 @@ namespace PC2MQTT.MQTT
             System.Threading.Thread.Sleep(50);
 
             byte conn = client.Connect(_mqttSettings.deviceId, _mqttSettings.user, _mqttSettings.password, true, _mqttSettings.will.qosLevel,
-                _mqttSettings.will.enabled, _mqttSettings.deviceId + _mqttSettings.will.topic, _mqttSettings.will.offlineMessage, false, _mqttSettings.will.keepAlive);
+                _mqttSettings.will.enabled, _mqttSettings.will.topic.ResultantTopic(true), _mqttSettings.will.offlineMessage, false, _mqttSettings.will.keepAlive);
 
             if (client.IsConnected)
             {
-                Publish(_mqttSettings.will.onlineMessage, _mqttSettings.will.topic);
+                Publish(_mqttSettings.will.topic, _mqttSettings.will.onlineMessage);
                 ConnectionConnected?.Invoke();
             }
             else
@@ -161,22 +159,36 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        public ushort Publish(string message, string topic, bool retain = false)
+        public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
         {
             // Check for connectivity? Or QoS level if message will be retained
-            var messageId = client.Publish(_mqttSettings.deviceId + topic, Encoding.UTF8.GetBytes(message), _mqttSettings.publishQosLevel, retain);
+            var messageId = client.Publish(topic.ResultantTopic(prependDeviceId), Encoding.UTF8.GetBytes(message), _mqttSettings.publishQosLevel, retain);
+
+            if (messageId > 0) MessagePublished?.Invoke(topic, message);
 
             return messageId;
         }
 
-        public ushort Subscribe(string topic)
+        public ushort Subscribe(string topic, bool prependDeviceId = true)
         {
-            var messageId = client.Subscribe(new string[] { _mqttSettings.deviceId + topic }, new byte[] { _mqttSettings.subscribeQosLevel });
+            var messageId = client.Subscribe(new string[] { topic.ResultantTopic(prependDeviceId) }, new byte[] { _mqttSettings.subscribeQosLevel });
+
+            if (messageId > 0) TopicSubscribed?.Invoke(topic);
 
             return messageId;
         }
 
-        public ushort Subscribe(string[] topics)
+        public ushort Unubscribe(string topic, bool prependDeviceId = true)
+        {
+            
+            var messageId = client.Unsubscribe(new string[] { topic.ResultantTopic(prependDeviceId) });
+
+            if (messageId > 0) TopicUnsubscribed?.Invoke(topic);
+
+            return messageId;
+        }
+
+        public ushort Subscribe(string[] topics, bool prependDeviceId = true)
         {
             string topicsString = String.Join(", ", topics);
 
@@ -184,31 +196,18 @@ namespace PC2MQTT.MQTT
 
             foreach (var item in topics)
             {
-                messageId = Subscribe(item);
+                messageId = Subscribe(item, prependDeviceId);
             }
 
             //only return last messageId..
             return messageId;
         }
 
-        private void Client_MqttMsgUnsubscribed(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgUnsubscribedEventArgs e)
-        {
-            TopicUnsubscribed?.Invoke(e.MessageId);
-        }
-
-        private void Client_MqttMsgSubscribed(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgSubscribedEventArgs e)
-        {
-            TopicSubscribed?.Invoke(e.MessageId);
-        }
-
-        private void Client_MqttMsgPublished(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishedEventArgs e)
-        {
-            MessagePublished?.Invoke(e.MessageId, e.IsPublished);
-        }
-
         private void Client_MqttMsgPublishReceived(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishEventArgs e)
         {
-            MessageReceivedString?.Invoke(Encoding.UTF8.GetString(e.Message), e.Topic);
+            MessageReceivedByte?.Invoke(e.Topic.ResultantTopic(false), e.Message);
+            MessageReceivedString?.Invoke(e.Topic.ResultantTopic(false), Encoding.UTF8.GetString(e.Message));
         }
+
     }
 }

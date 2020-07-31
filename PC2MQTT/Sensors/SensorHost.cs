@@ -1,42 +1,51 @@
-﻿using CSScriptLib;
+﻿using BadLogger;
+using CSScriptLib;
+using ExtensionMethods;
 using PC2MQTT.Helpers;
 using PC2MQTT.MQTT;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 
 namespace PC2MQTT.Sensors
 {
-    public class SensorHost
+    public class SensorHost : IDisposable
     {
         public ISensor sensor { get; private set; }
-        public string topic { get; private set; }
         public string code { get; private set; }
         public bool IsCompiled { get; private set; }
         public bool IsCodeLoaded { get; private set; }
         public string SensorIdentifier { get; private set; }
-
         public string GetLastError { get; private set; }
+        private bool _hasBeendisposed;
 
+        private BadLogger.BadLogger Log;
         private Client _client;
         private string _deviceId;
+        private SensorManager _sensorManager;
 
-        public SensorHost(string code, string deviceId, Client client)
+        public SensorHost(string code, string deviceId, Client client, SensorManager sensorManager)
         {
             this.code = code;
             this._deviceId = deviceId;
             this._client = client;
+            this._sensorManager = sensorManager;
+            Log = LogManager.GetCurrentClassLogger();
 
             IsCodeLoaded = true;
 
             Compile();
         }
 
-        public SensorHost(string deviceId, Client client)
+        public SensorHost(string deviceId, Client client, SensorManager sensorManager)
         {
             this._deviceId = deviceId;
             this._client = client;
+            this._sensorManager = sensorManager;
+            Log = LogManager.GetCurrentClassLogger();
 
             IsCodeLoaded = false;
             IsCompiled = false;
@@ -51,6 +60,9 @@ namespace PC2MQTT.Sensors
 
             IsCodeLoaded = true;
             Compile();
+
+            if (this.SensorIdentifier == null)
+                this.SensorIdentifier = Path.GetFileName(filePath);
         }
 
         private void Compile()
@@ -65,30 +77,35 @@ namespace PC2MQTT.Sensors
 
             if (this.code.Contains(ns))
             {
-                Logging.Log("Sensor script contains a namespace. Attempting to remove it..");
-                this.code = this.code.Remove(this.code.IndexOf(ns), ns.Length);
+                Log.Trace("Sensor script contains a namespace. Attempting to remove it..");
 
-                var FirstParenLoc = this.code.IndexOf("{");
-                this.code = this.code.Remove(FirstParenLoc, 1);
+                var nsLocation = this.code.IndexOf(ns);
+                this.code = this.code.Remove(nsLocation, ns.Length);
 
-                var lastParenLoc = this.code.LastIndexOf("}");
-                this.code = this.code.Substring(0, lastParenLoc > -1 ? lastParenLoc : this.code.Length);
+                var firstParen = this.code.IndexOf("{", nsLocation);
+                this.code = this.code.Remove(firstParen, 1);
+
+                var lastParen = this.code.LastIndexOf("}");
+                this.code = this.code.Remove(lastParen, 1);
             }
 
             try 
             {
-                this.sensor = CSScript.Evaluator.LoadCode<ISensor>(code);
 
-                IsCompiled = sensor.IsSensorReady();
+                this.sensor = CSScript.RoslynEvaluator
+                    .ReferenceAssembliesFromCode(code)
+                    .ReferenceAssembly(Assembly.GetExecutingAssembly())
+                    .ReferenceAssembly(Assembly.GetExecutingAssembly().Location)
+                    .LoadCode<ISensor>(code);
+
+                IsCompiled = sensor.DidSensorCompile();
 
                 if (IsCompiled)
-                {
-                    topic = sensor.GetTopic();
-                    SensorIdentifier = sensor.GetSensorIdentifier();
-                }
+                    SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
+
             } catch (Exception ex) { GetLastError = ex.Message; return; }
 
-}
+        }
 
         public bool InitializeSensor()
         {
@@ -98,17 +115,84 @@ namespace PC2MQTT.Sensors
             return false;
         }
 
-        public void Subscribe(string topic)
+        public void UninitializeSensor()
         {
-            Logging.Log($"[{SensorIdentifier}] subscribing to [{topic}]");
-            _client.Subscribe(topic);
+            if (IsCompiled)
+                if (sensor != null && sensor.IsInitialized)
+                    sensor.Uninitialize();
         }
 
-        public void Publish(string message, string topic, bool retain)
+        public void DisposeSensor()
         {
-            Logging.Log($"[{SensorIdentifier}] publishing to [{topic}]: [{message}]");
-            _client.Publish(message, topic, retain);
+            if (_hasBeendisposed) return;
+
+            sensor.IsInitialized = false;
+            _sensorManager.UnmapAlltopics(this);
+            UninitializeSensor();
+            if (sensor != null) sensor.Dispose();
+            code = null;
+            IsCodeLoaded = false;
+            IsCompiled = false;
+            this._client = null;
+            this._deviceId = null;
+            //this.SensorIdentifier = null;
+            this.GetLastError = null;
+            this.Log = null;
+            this.sensor = null;
+
+            _hasBeendisposed = true;
         }
 
+        public bool Subscribe(string topic, bool prependDeviceId = true)
+        {
+            topic = topic.ResultantTopic(prependDeviceId);
+
+            var success = _client.Subscribe(topic, prependDeviceId);
+            Log.Trace($"[{SensorIdentifier}] subscribing to [{topic}] ({success})");
+
+            if (success > 0)
+            {
+                _sensorManager.MapTopicToSensor(topic, this, prependDeviceId);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
+        {
+            topic = topic.ResultantTopic(prependDeviceId);
+
+            var success = _client.Publish(topic, message, prependDeviceId, retain);
+            Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}] ({success})");
+
+            if (success > 0) return true;
+
+            return false;
+        }
+
+        public bool Unsubscribe(string topic, bool prependDeviceId = true)
+        {
+            topic = topic.ResultantTopic(prependDeviceId);
+            var success = _client.Unubscribe(topic, prependDeviceId);
+            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{topic}] ({success})");
+
+            if (success > 0)
+            {
+                _sensorManager.UnmapTopicToSensor(topic, this);
+                return true;
+            }
+
+            return false;
+        }
+
+        public void UnsubscribeAllTopics() => _sensorManager.UnmapAlltopics(this);
+
+        public void Dispose()
+        {
+            DisposeSensor();
+            GC.SuppressFinalize(this);
+        }
     }
 }

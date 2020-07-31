@@ -12,6 +12,7 @@ namespace PC2MQTT.Sensors
         public bool freeMemory = true;
         public bool batteryLife = true;
         public bool hdd = true;
+        public bool uptime = true;
 
         //public bool webcam;
         public bool monitor = true;

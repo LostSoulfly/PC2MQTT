@@ -14,6 +14,8 @@ namespace PC2MQTT.Helpers
         public bool minimizeAtLaunch = true;
         public bool enableLogging = true;
         public bool logToConsole = true;
+        public string logLevel = "INFO";
+
         public MqttSettings mqttSettings = new MqttSettings();
         public List<string> enabledSensors = new List<string>();
 
@@ -44,7 +46,7 @@ namespace PC2MQTT.Helpers
                 }
 
             }
-            catch (Exception ex)
+            catch 
             {
                 //Logging.Log($"Unable to load settings file {fileName}: {ex.Message}");
             }
@@ -63,7 +65,7 @@ namespace PC2MQTT.Helpers
                 File.WriteAllText(fileName, JsonConvert.SerializeObject(config, formatting: Formatting.Indented));
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
                 //Logging.Log($"Unable to save settings file {fileName}: {ex.Message}");
             }

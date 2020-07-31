@@ -4,16 +4,23 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <StartupObject>PC2MQTT.Program</StartupObject>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies> 
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CS-Script.Core" Version="1.3.2" />
+    <PackageReference Include="CS-Script.Core" Version="1.4.0" />
     <PackageReference Include="M2MqttDotnetCore" Version="1.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Servers\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BadLogger">
+      <HintPath>dep\BadLogger.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

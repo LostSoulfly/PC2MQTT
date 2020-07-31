@@ -4,13 +4,14 @@ using System.Text;
 
 namespace PC2MQTT.Sensors
 {
-    public interface ISensor
+    public interface ISensor : IDisposable
     {
+        public SensorHost sensorHost { get; set; }
         public bool IsInitialized { get; set; }
         public bool Initialize(SensorHost sensorInfo);
-        public string GetTopic();
-        public void ProcessMessage(string message);
-        public bool IsSensorReady();
+        public void Uninitialize();
+        public void ProcessMessage(string topic, string message);
+        public bool DidSensorCompile();
         public string GetSensorIdentifier();
     }
 }
