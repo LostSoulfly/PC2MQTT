@@ -1,4 +1,5 @@
-﻿using BadLogger;
+﻿
+using BadLogger;
 using System;
 using System.Timers;
 

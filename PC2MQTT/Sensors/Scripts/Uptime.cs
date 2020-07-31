@@ -1,4 +1,7 @@
-﻿using BadLogger;
+﻿using PC2MQTT.Helpers;
+using PC2MQTT.MQTT;
+using PC2MQTT.Sensors;
+using BadLogger;
 using System;
 using System.Runtime.InteropServices;
 using System.Timers;

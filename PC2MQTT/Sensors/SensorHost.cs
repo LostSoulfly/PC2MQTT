@@ -158,6 +158,17 @@ namespace PC2MQTT.Sensors
             if (!this.code.Contains("using PC2MQTT.MQTT;"))
                 this.code = "using PC2MQTT.MQTT;\r\n" + this.code;
 
+            if (!this.code.Contains("PC2MQTT.Helpers;"))
+                this.code = "using PC2MQTT.Helpers;\r\n" + this.code;
+
+            if (!this.code.Contains("using PC2MQTT.Sensors;"))
+                this.code = "using PC2MQTT.Sensors;\r\n" + this.code;
+
+            if (!this.code.Contains("using System;"))
+                this.code = "using System;\r\n" + this.code;
+
+            
+
             string ns = "namespace PC2MQTT.Sensors";
 
             if (this.code.Contains(ns))
