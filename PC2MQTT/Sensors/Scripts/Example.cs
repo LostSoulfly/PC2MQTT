@@ -7,39 +7,42 @@ using System.Timers;
 // PC2MQTT attempts to remove namespaces automatically before compiling the sensor script
 namespace PC2MQTT.Sensors
 {
-    // Change "Example" to whatever you want your Sensor to be. It needs to inherit from ISensor
+    // Change "Example" to whatever you want your Sensor to be. It should still inherit from ISensor!
     public class Example : PC2MQTT.Sensors.ISensor
     {
-        // If we've finished initializing. Careful, wait too long and the sensor will be cleaned up by SensorManager
+        // If we've finished initializing. Set this to true before returning from Initialize() below.
         public bool IsInitialized { get; set; }
 
-        // Save this from the Initialize entrypoint method
+        // Save this from the Initialize entrypoint, passed from the parent sensorHost
         public SensorHost sensorHost { get; set; }
 
         // BadLogger from PC2MQTT so we can pass log messages, not required
         private BadLogger.BadLogger Log;
 
-        // An example time, see more below in Initialize
+        // An example timer, see more below in SensorMain()
         private Timer unloadTimer;
 
         // This should always return true. This is a simple test to see if the sensor was loaded properly
         public bool DidSensorCompile() => true;
 
-        // You can call this directly if you want to stop and unload the sensor,
-        // but PC2MQTT will also call this if the sensor is not marked IsInitialized
+        // You can call this directly if you want to stop and unload the sensor
+        // but PC2MQTT will also call this if the sensor is not marked IsInitialized = true
+        // Note: Cleanup is only enabled after all sensors have initialized
         public void Dispose()
         {
             Log.Debug($"Disposing [{GetSensorIdentifier()}]");
+            unloadTimer.Stop();
             Uninitialize();
             GC.SuppressFinalize(this);
         }
 
-        // Should return "Example". You can specify it here as a string manually, though
+        // Should return "Example" (this class's name). You can specify it here as a string manually, though if you want
         public string GetSensorIdentifier() => this.GetType().Name;
 
-        // This is called by PC2MQTT after loading all sensor scripts, one at a time
-        // Do your heavy lifting here, define timers, spin up extra threads, start servers, whatever
-        // Note that Sensor scripts are blocking, which means PC2MQTT will not continue until exiting this method
+        // This is called by PC2MQTT after compiling the sensor. Do your, ugh, initialization stuff here.
+        // Load any databases, connect to any services, spin up any servers, etc.
+        // Control will be returned to the sensor in SensorMain after all sensors have loaded.
+        // Note that sensor scripts are non-blocking, so you could take all the time you want here.. but please don't :(
         public bool Initialize(SensorHost sensorHost)
         {
             // Initialize BadLogger so we can pass log messages, not required
@@ -48,25 +51,57 @@ namespace PC2MQTT.Sensors
             // You'll want to save this for later in the interface sensorHost object
             this.sensorHost = sensorHost;
 
+            Log.Info($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
+            // Initialize needs to return true, but you can stall for a while or run processor-intensive things beforehand.
+            // Control is returned to the sensor in SensorMain after Initialization.
+            Log.Info($"We're not done initializing yet.. just a bit longer..");
+            System.Threading.Thread.Sleep(5000);
+            Log.Info($"We're not done initializing yet.. almost..");
+            System.Threading.Thread.Sleep(5000);
+
+            Log.Info($"Finishing initialization in {this.GetSensorIdentifier()}");
+
+            // Let PC2MQTT know that we're done and initialized properly.
+            // If for some reason your code didn't initialize properly you can return false
+            // Just make sure to clean up after yourself as best you can.
+            // IsInitialized = false sensors are cleaned up automatically after all sensors are done loading.
+            IsInitialized = true;
+            return IsInitialized;
+        }
+
+
+        public void SensorMain()
+        {
+            // We should be in our own thread. Hopefully. I'm still new to threading..
+            Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
             // Subscribe to JUST /example/status topic
-            sensorHost.Subscribe("/example/status");
+            if (!sensorHost.Subscribe("/example/status"))
+                Log.Info("Failed to subscribe to /example/status");
 
             // subscribe to all levels above and including /example/
             // for example, /example/hello/world/test would trigger.
-            sensorHost.Subscribe("/example/#");
+            if (!sensorHost.Subscribe("/example/#"))
+                Log.Info("Failed to subscribe to /example/#");
 
             // Subscribe to all /example2/ topics one level up.
             // For example, /example2/hello would trigger
             // but /example2/hello/test would not.
-            sensorHost.Subscribe("/example2/+");
+            if (!sensorHost.Subscribe("/example2/+"))
+                Log.Info("Failed to subscribe to /example2/+");
 
             // These two will be received by this script
-            sensorHost.Publish("/example/status", "1", prependDeviceId: true, retain: false);
-            sensorHost.Publish("/example/uptime/status", "1", prependDeviceId: true, retain: false);
+            if (!sensorHost.Publish("/example/status", "1", prependDeviceId: true, retain: false))
+                Log.Info("Failed to publish to /example/status");
+
+            if (!sensorHost.Publish("/example/uptime/status", "1", prependDeviceId: true, retain: false))
+                Log.Info("Failed to publish to /example/uptime/status");
 
             // This one will not.. because /example2/+ only covers one topic level above itself.
             // Note that "true, false" is exactly the same as above just without argument names shown
-            sensorHost.Publish("/example2/uptime/status", "1", true, false);
+            if (!sensorHost.Publish("/example2/uptime/status", "1", true, false))
+                Log.Info("Failed to publish to /example2/uptime/status");
 
             Log.Info("In 10 seconds I will send an unload message to /example2/unload_example_script");
 
@@ -78,26 +113,31 @@ namespace PC2MQTT.Sensors
             unloadTimer.Elapsed += delegate
             {
                 Log.Info("Sending unload MQTT message to myself");
-                sensorHost.Publish("/example2/unload_example_script", "");
+                if (!sensorHost.Publish("/example2/unload_example_script", ""))
+                    Log.Info("Failed to publish to /example2/unload_example_script");
+
             };
             // Start the timer
             unloadTimer.Start();
 
-            // Let PC2MQTT know that we're done and initialized properly.
-            // If for some reason your code didn't initialize properly you can return false
-            // Just make sure to clean up after yourself
-            IsInitialized = true;
-            return IsInitialized;
+            while (this.IsInitialized)
+            {
+                Log.Info("If you want, you can stay in control for the life of the sensor using something like this.");
+                System.Threading.Thread.Sleep(10000); // You can use a smaller sleep, just make sure you sleep to reduce CPU usage.
+            }
         }
 
         // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
         public void ProcessMessage(string topic, string message)
         {
-            Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
+            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
 
-            // If we receive a message for our unload topic, call Dispose to start the process
+            // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
             if (topic == "/example2/unload_example_script")
-                Dispose();
+            {
+                Log.Info("Disposing of myself...");
+                sensorHost.Dispose();
+            }
         }
 
         // This is called when the Sensor is being uninitialized.
@@ -106,7 +146,7 @@ namespace PC2MQTT.Sensors
             // Best to check if it's already been initialized as it may get called a few times to be safe.
             if (IsInitialized)
             {
-                Log.Debug($"Uninitializing [{GetSensorIdentifier()}]");
+                Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
 
                 // Don't need to unsubscribe topcs as it's done by PC2MQTT
                 // this._sensorHost.Unsubscribe("/example/status");
@@ -124,5 +164,6 @@ namespace PC2MQTT.Sensors
                 IsInitialized = false;
             }
         }
+
     }
 }

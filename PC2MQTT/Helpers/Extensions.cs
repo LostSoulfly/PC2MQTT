@@ -5,7 +5,6 @@ namespace ExtensionMethods
     public static class Extensions
     {
         public static string deviceId;
-
         public static string RemoveDeviceId(this string topic)
         {
             if (topic.Substring(0, 1) == "/") topic = topic[1..];
@@ -56,5 +55,6 @@ namespace ExtensionMethods
             // show a single decimal place, and no space.
             return String.Format("{0:0.##} {1}", size, sizes[order]);
         }
+
     }
 }

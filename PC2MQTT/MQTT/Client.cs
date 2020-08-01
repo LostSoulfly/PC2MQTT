@@ -79,8 +79,16 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        public void MqttDisconnect()
+        {
+            client.Disconnect();
+            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
+            client = null;
+        }
+
         public void MqttConnect()
         {
+
             if ((_autoReconnect) && (!_reconnectTimerStarted))
             {
                 _reconnectTimer.Start();
@@ -150,20 +158,6 @@ namespace PC2MQTT.MQTT
             return messageId;
         }
 
-        public ushort Subscribe(string[] topics, bool prependDeviceId = true)
-        {
-            string topicsString = String.Join(", ", topics);
-
-            ushort messageId = 0;
-
-            foreach (var item in topics)
-            {
-                messageId = Subscribe(item, prependDeviceId);
-            }
-
-            //only return last messageId..
-            return messageId;
-        }
 
         public ushort Unubscribe(string topic, bool prependDeviceId = true)
         {
@@ -190,6 +184,8 @@ namespace PC2MQTT.MQTT
     public class MqttSettings
     {
         public bool useFakeMqttServer = false;
+        public bool useFakeMqttDelays = true;
+        public bool useFakeMqttFailures = false;
         public string broker = "";
         public string deviceId = "PC2MQTT";
         public string password = "";

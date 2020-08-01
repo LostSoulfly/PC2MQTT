@@ -3,6 +3,8 @@ using PC2MQTT.Helpers;
 using PC2MQTT.MQTT;
 using PC2MQTT.Sensors;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PC2MQTT
 {
@@ -12,16 +14,17 @@ namespace PC2MQTT
         public static IClient client;
         public static SensorManager sensorManager;
         public static Settings settings = new Settings();
+        private static CancellationTokenSource _cancellationTokenSource;
         private static BadLogger.BadLogger Log;
 
         private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
-            Log.Warn($"Connection to MQTT server {settings.config.mqttSettings.broker} closed: {reason}");
+            Log.Warn($"Connection to MQTT server closed: {reason}");
         }
 
         private static void Client_ConnectionConnected()
         {
-            Log.Info($"Connected to MQTT server {settings.config.mqttSettings.broker}");
+            Log.Info($"Connected to MQTT server");
         }
 
         private static void Client_MessagePublished(string topic, string message)
@@ -70,26 +73,30 @@ namespace PC2MQTT
             client.TopicUnsubscribed += Client_TopicUnsubscribed;
 
             client.MqttConnect();
+
         }
 
-        private static void InitializeSensors()
+        private static void InitializeSensors(bool useOnlyBuiltInScripts = true)
         {
-            // Initialize sensor handlers and map topics for them
-
             sensorManager = new SensorManager(client, settings);
 
-            var available = sensorManager.LoadSensorScripts();
-
-            if (settings.config.enabledSensors.Count == 0)
+            if (!useOnlyBuiltInScripts)
             {
-                Log.Info("No sensors enabled, enabling all found sensors..");
-                settings.config.enabledSensors = available;
-                settings.SaveSettings();
+                var available = sensorManager.LoadSensorScripts();
+
+                if (settings.config.enabledSensors.Count == 0)
+                {
+                    Log.Info("No sensors enabled, enabling all found sensors..");
+                    settings.config.enabledSensors = available;
+                    settings.SaveSettings();
+                }
+            } else
+            {
+                Log.Info("Using only built-in scripts. (This improves runtime speeds and memory usage)");
+                sensorManager.LoadBuiltInScripts();
             }
 
-            var loaded = sensorManager.InitializeSensors(settings.config.enabledSensors);
-
-            Log.Info($"Loaded {loaded} out of {available.Count} sensors.");
+            sensorManager.InitializeSensors(settings.config.enabledSensors);
         }
 
         private static void InitializeSettings()
@@ -100,6 +107,8 @@ namespace PC2MQTT
                 Console.WriteLine("Generating default settings. Please edit config.json and re-launch the program.");
                 Environment.Exit(0);
             }
+
+            settings.SaveSettings();
         }
 
         private static void Main(string[] args)
@@ -112,15 +121,34 @@ namespace PC2MQTT
             Logging.InitializeLogging(settings);
             Log = LogManager.GetCurrentClassLogger();
 
-            InitializeMqtt();
-            InitializeSensors();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var token = _cancellationTokenSource.Token;
+
+            Task t;
+            t = Task.Run(() => InitializeMqtt(), token);
+
+            while (!t.IsCompleted)
+            {
+                //Log.Trace("Waiting for MQTT to initialize..");
+                System.Threading.Thread.Sleep(100);
+            }
+
+            InitializeSensors(settings.config.useOnlyBuiltInScripts);
+            sensorManager.StartSensors();
 
             while (Console.ReadKey().Key != ConsoleKey.Escape)
             {
-                System.Threading.Thread.Sleep(1);
+                System.Threading.Thread.Sleep(10);
             }
 
+            Log.Info("Escape key pressed, shutting down..");
+
+            sensorManager.Dispose();
+            client.MqttDisconnect();
+
+            _cancellationTokenSource.Cancel();
             Environment.Exit(0);
         }
+
     }
 }

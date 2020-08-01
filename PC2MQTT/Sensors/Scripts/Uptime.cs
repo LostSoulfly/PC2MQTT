@@ -32,7 +32,7 @@ namespace PC2MQTT.Sensors
             GC.SuppressFinalize(this);
         }
 
-        public string GetSensorIdentifier() => this.GetType().Name; // Should return "Uptime". You can specify it here as a string manually, though.
+        public string GetSensorIdentifier() => this.GetType().Name;
 
         public bool Initialize(SensorHost sensorHost)
         {
@@ -40,14 +40,7 @@ namespace PC2MQTT.Sensors
 
             this.sensorHost = sensorHost;
 
-            this.sensorHost.Subscribe("/uptime/get");
-            this.sensorHost.Subscribe("/uptime/current");
-
-            Log.Info("Requesting my own uptime every 60 seconds..");
-
-            fiveSeconds = new Timer(60000);
-            fiveSeconds.Elapsed += delegate { this.sensorHost.Publish("/uptime/get", "", prependDeviceId: true, retain: false); };
-            fiveSeconds.Start();
+            Log.Debug($"CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
             IsInitialized = true;
             return true;
@@ -76,5 +69,19 @@ namespace PC2MQTT.Sensors
 
         [DllImport("kernel32")]
         private static extern UInt64 GetTickCount64();
+
+        public void SensorMain()
+        {
+            Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
+            this.sensorHost.Subscribe("/uptime/get");
+            this.sensorHost.Subscribe("/uptime/current");
+
+            Log.Info("Requesting my own uptime every 15 seconds..");
+
+            fiveSeconds = new Timer(15000);
+            fiveSeconds.Elapsed += delegate { this.sensorHost.Publish("/uptime/get", "", prependDeviceId: true, retain: false); };
+            fiveSeconds.Start();
+        }
     }
 }

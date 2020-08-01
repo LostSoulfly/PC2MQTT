@@ -25,11 +25,9 @@ namespace PC2MQTT.MQTT
         public event MqttTopicUnsubscribed TopicUnsubscribed;
 
         public void MqttConnect();
-
+        public void MqttDisconnect();
         public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false);
         public ushort Subscribe(string topic, bool prependDeviceId = true);
-        public ushort Subscribe(string[] topics, bool prependDeviceId = true);
         public ushort Unubscribe(string topic, bool prependDeviceId = true);
-
     }
 }

@@ -9,6 +9,8 @@ namespace PC2MQTT.Sensors
 
         public bool DidSensorCompile();
 
+        public void SensorMain();
+
         public string GetSensorIdentifier();
 
         public bool Initialize(SensorHost sensorInfo);

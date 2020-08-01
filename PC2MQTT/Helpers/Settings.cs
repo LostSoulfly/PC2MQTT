@@ -11,6 +11,7 @@ namespace PC2MQTT.Helpers
         // no ssl support cause i ain't use it :(
 
         public List<string> enabledSensors = new List<string>();
+        public bool useOnlyBuiltInScripts = true;
         public bool enableLogging = true;
         public string logLevel = "INFO";
         public bool logToConsole = true;

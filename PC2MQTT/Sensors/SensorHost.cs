@@ -17,18 +17,17 @@ namespace PC2MQTT.Sensors
         public ISensor sensor { get; private set; }
         public string SensorIdentifier { get; private set; }
         private IClient _client;
-        private string _deviceId;
         private bool _hasBeendisposed;
 
         private SensorManager _sensorManager;
         private BadLogger.BadLogger Log;
 
-        public SensorHost(string code, string deviceId, IClient client, SensorManager sensorManager)
+        public SensorHost(string code, IClient client, SensorManager sensorManager)
         {
             this.code = code;
-            this._deviceId = deviceId;
             this._client = client;
             this._sensorManager = sensorManager;
+
             Log = LogManager.GetCurrentClassLogger();
 
             IsCodeLoaded = true;
@@ -36,15 +35,31 @@ namespace PC2MQTT.Sensors
             Compile();
         }
 
-        public SensorHost(string deviceId, IClient client, SensorManager sensorManager)
+        public SensorHost(IClient client, SensorManager sensorManager)
         {
-            this._deviceId = deviceId;
+            this.code = code;
             this._client = client;
             this._sensorManager = sensorManager;
+
             Log = LogManager.GetCurrentClassLogger();
 
             IsCodeLoaded = false;
-            IsCompiled = false;
+
+        }
+
+        public SensorHost(ISensor sensor, IClient client, SensorManager sensorManager)
+        {
+            this._client = client;
+            this._sensorManager = sensorManager;
+            this.sensor = sensor;
+
+            Log = LogManager.GetCurrentClassLogger();
+
+            IsCodeLoaded = true;
+            IsCompiled = true;
+
+            this.SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
+
         }
 
         public void Dispose()
@@ -65,10 +80,8 @@ namespace PC2MQTT.Sensors
             IsCodeLoaded = false;
             IsCompiled = false;
             this._client = null;
-            this._deviceId = null;
             //this.SensorIdentifier = null;
             this.GetLastError = null;
-            this.Log = null;
             this.sensor = null;
 
             _hasBeendisposed = true;
@@ -82,7 +95,7 @@ namespace PC2MQTT.Sensors
             return false;
         }
 
-        public void LoadFromFile(string filePath)
+        public void LoadFromFile(string filePath, bool compile = true)
         {
             try
             {
@@ -91,7 +104,7 @@ namespace PC2MQTT.Sensors
             catch (Exception ex) { GetLastError = ex.Message; }
 
             IsCodeLoaded = true;
-            Compile();
+            if (compile) Compile();
 
             if (this.SensorIdentifier == null)
                 this.SensorIdentifier = Path.GetFileName(filePath);
@@ -99,6 +112,8 @@ namespace PC2MQTT.Sensors
 
         public bool Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
         {
+            if (_client == null)
+                return false;
             topic = topic.ResultantTopic(prependDeviceId);
 
             Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}]");
@@ -112,6 +127,10 @@ namespace PC2MQTT.Sensors
 
         public bool Subscribe(string topic, bool prependDeviceId = true)
         {
+
+            if (_client == null)
+                return false;
+
             topic = topic.ResultantTopic(prependDeviceId);
 
             var success = _client.Subscribe(topic, prependDeviceId);
@@ -136,6 +155,9 @@ namespace PC2MQTT.Sensors
 
         public bool Unsubscribe(string topic, bool prependDeviceId = true)
         {
+            if (_client == null)
+                return false;
+
             topic = topic.ResultantTopic(prependDeviceId);
             var success = _client.Unubscribe(topic, prependDeviceId);
             Log.Trace($"[{SensorIdentifier}] unsubscribing to [{topic}] ({success})");
@@ -167,8 +189,6 @@ namespace PC2MQTT.Sensors
 
             if (!this.code.Contains("using System;"))
                 this.code = "using System;\r\n" + this.code;
-
-            
 
             string ns = "namespace PC2MQTT.Sensors";
 
