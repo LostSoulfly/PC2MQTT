@@ -1,36 +1,37 @@
 ﻿using BadLogger;
 using ExtensionMethods;
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using System.Timers;
 
 namespace PC2MQTT.MQTT
 {
     public class FakeClient : IClient
     {
-
-        private ushort _messageId = 0;
-        public bool IsConnected => true;
-
         public event MqttConnectionClosed ConnectionClosed;
+
         public event MqttConnectionConnected ConnectionConnected;
+
         public event MqttReconnecting ConnectionReconnecting;
+
         public event MqttMessagePublished MessagePublished;
+
         public event MessageReceivedByte MessageReceivedByte;
+
         public event MessageReceivedString MessageReceivedString;
+
         public event MqttTopicSubscribed TopicSubscribed;
+
         public event MqttTopicUnsubscribed TopicUnsubscribed;
 
-
+        public bool IsConnected => true;
         private static BadLogger.BadLogger Log;
+        private readonly Random _random = new Random();
+        private ushort _messageId = 0;
         private MqttSettings _mqttSettings;
-
 
         public FakeClient(MqttSettings mqttSettings)
         {
-
             this._mqttSettings = mqttSettings;
             Log = LogManager.GetCurrentClassLogger();
             Log.Warn("***");
@@ -41,10 +42,12 @@ namespace PC2MQTT.MQTT
             System.Threading.Thread.Sleep(GetRandom());
         }
 
-        public void MqttDisconnect()
+        public int GetRandom(int max = 2000)
         {
-            System.Threading.Thread.Sleep(GetRandom());
-            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
+            if (!_mqttSettings.useFakeMqttDelays)
+                return 0;
+
+            return _random.Next(5, max);
         }
 
         public void MqttConnect()
@@ -56,27 +59,17 @@ namespace PC2MQTT.MQTT
             _messageId++;
         }
 
-        private readonly Random _random = new Random();
-        public int GetRandom(int max = 2000)
+        public void MqttDisconnect()
         {
-            if (!_mqttSettings.useFakeMqttDelays)
-                return 0;
-
-            return _random.Next(5, max);
-        }
-        public bool SometimesFalse()
-        {
-            if (!_mqttSettings.useFakeMqttFailures)
-                return true;
-
-            return _random.Next(0, 9) != 0;
+            System.Threading.Thread.Sleep(GetRandom());
+            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
         }
 
         public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
         {
             var success = SometimesFalse();
 
-            if (!success) Log.Trace($"Randomly failing Publish call for {topic}: {message}" ); 
+            if (!success) Log.Trace($"Randomly failing Publish call for {topic}: {message}");
 
             if (success)
             {
@@ -88,10 +81,17 @@ namespace PC2MQTT.MQTT
                     MessageReceivedByte?.Invoke(topic.ResultantTopic(false), Encoding.UTF8.GetBytes(message));
                     MessageReceivedString?.Invoke(topic.ResultantTopic(false), message);
                 });
-
             }
             else { return 0; }
             return _messageId++;
+        }
+
+        public bool SometimesFalse()
+        {
+            if (!_mqttSettings.useFakeMqttFailures)
+                return true;
+
+            return _random.Next(0, 9) != 0;
         }
 
         public ushort Subscribe(string topic, bool prependDeviceId = true)
@@ -123,6 +123,5 @@ namespace PC2MQTT.MQTT
 
             return _messageId++;
         }
-
     }
 }

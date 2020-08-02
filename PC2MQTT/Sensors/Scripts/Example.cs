@@ -1,5 +1,4 @@
-﻿
-using BadLogger;
+﻿using BadLogger;
 using System;
 using System.Timers;
 
@@ -52,7 +51,7 @@ namespace PC2MQTT.Sensors
             this.sensorHost = sensorHost;
 
             Log.Info($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-
+            Log.Info($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
             // Initialize needs to return true, but you can stall for a while or run processor-intensive things beforehand.
             // Control is returned to the sensor in SensorMain after Initialization.
             Log.Info($"We're not done initializing yet.. just a bit longer..");
@@ -70,6 +69,18 @@ namespace PC2MQTT.Sensors
             return IsInitialized;
         }
 
+        // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
+        public void ProcessMessage(string topic, string message)
+        {
+            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
+
+            // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
+            if (topic == "/example2/unload_example_script")
+            {
+                Log.Info("Disposing of myself...");
+                sensorHost.Dispose();
+            }
+        }
 
         public void SensorMain()
         {
@@ -115,7 +126,6 @@ namespace PC2MQTT.Sensors
                 Log.Info("Sending unload MQTT message to myself");
                 if (!sensorHost.Publish("/example2/unload_example_script", ""))
                     Log.Info("Failed to publish to /example2/unload_example_script");
-
             };
             // Start the timer
             unloadTimer.Start();
@@ -124,19 +134,6 @@ namespace PC2MQTT.Sensors
             {
                 Log.Info("If you want, you can stay in control for the life of the sensor using something like this.");
                 System.Threading.Thread.Sleep(10000); // You can use a smaller sleep, just make sure you sleep to reduce CPU usage.
-            }
-        }
-
-        // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
-        public void ProcessMessage(string topic, string message)
-        {
-            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
-
-            // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
-            if (topic == "/example2/unload_example_script")
-            {
-                Log.Info("Disposing of myself...");
-                sensorHost.Dispose();
             }
         }
 
@@ -164,6 +161,5 @@ namespace PC2MQTT.Sensors
                 IsInitialized = false;
             }
         }
-
     }
 }

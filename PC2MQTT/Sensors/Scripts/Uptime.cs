@@ -1,7 +1,5 @@
-﻿using PC2MQTT.Helpers;
-using PC2MQTT.MQTT;
-using PC2MQTT.Sensors;
-using BadLogger;
+﻿using BadLogger;
+using ExtensionMethods;
 using System;
 using System.Runtime.InteropServices;
 using System.Timers;
@@ -18,11 +16,6 @@ namespace PC2MQTT.Sensors
 
         private BadLogger.BadLogger Log;
 
-        public static TimeSpan GetUpTime()
-        {
-            return TimeSpan.FromMilliseconds(GetTickCount64());
-        }
-
         public bool DidSensorCompile() => true;
 
         public void Dispose()
@@ -33,6 +26,26 @@ namespace PC2MQTT.Sensors
         }
 
         public string GetSensorIdentifier() => this.GetType().Name;
+
+        public TimeSpan GetUpTime()
+        {
+            if (CSScriptLib.Runtime.IsLinux)
+            {
+                string output = "cat /proc/uptime".LinuxBashResult();
+                var uptime = output.Split(" ");
+                return TimeSpan.FromSeconds(double.Parse(uptime[0]));
+            }
+
+            if (CSScriptLib.Runtime.IsWin)
+            {
+                //string cmd = "wmic path Win32_OperatingSystem get LastBootUpTime".WindowsShellResult();
+                //Log.Info("cmd: " + cmd);
+
+                return TimeSpan.FromMilliseconds(GetTickCount64());
+            }
+
+            return TimeSpan.MinValue;
+        }
 
         public bool Initialize(SensorHost sensorHost)
         {
@@ -61,15 +74,6 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public void Uninitialize()
-        {
-            fiveSeconds.Stop();
-            fiveSeconds.Dispose();
-        }
-
-        [DllImport("kernel32")]
-        private static extern UInt64 GetTickCount64();
-
         public void SensorMain()
         {
             Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
@@ -83,5 +87,14 @@ namespace PC2MQTT.Sensors
             fiveSeconds.Elapsed += delegate { this.sensorHost.Publish("/uptime/get", "", prependDeviceId: true, retain: false); };
             fiveSeconds.Start();
         }
+
+        public void Uninitialize()
+        {
+            fiveSeconds.Stop();
+            fiveSeconds.Dispose();
+        }
+
+        [DllImport("kernel32")]
+        private static extern UInt64 GetTickCount64();
     }
 }

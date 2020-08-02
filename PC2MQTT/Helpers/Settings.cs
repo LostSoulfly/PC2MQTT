@@ -11,12 +11,12 @@ namespace PC2MQTT.Helpers
         // no ssl support cause i ain't use it :(
 
         public List<string> enabledSensors = new List<string>();
-        public bool useOnlyBuiltInScripts = true;
         public bool enableLogging = true;
         public string logLevel = "INFO";
         public bool logToConsole = true;
         public bool minimizeAtLaunch = true;
         public MqttSettings mqttSettings = new MqttSettings();
+        public bool useOnlyBuiltInScripts = true;
         //public int screenshotServerPort = 8081;
         //public int webcamServerPort = 8080;
         //public webcamToStream;

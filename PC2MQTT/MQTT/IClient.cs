@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace PC2MQTT.MQTT
+﻿namespace PC2MQTT.MQTT
 {
     public interface IClient
     {
-        public bool IsConnected { get; }
-
         public event MqttConnectionClosed ConnectionClosed;
 
         public event MqttConnectionConnected ConnectionConnected;
@@ -24,10 +18,16 @@ namespace PC2MQTT.MQTT
 
         public event MqttTopicUnsubscribed TopicUnsubscribed;
 
+        public bool IsConnected { get; }
+
         public void MqttConnect();
+
         public void MqttDisconnect();
+
         public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false);
+
         public ushort Subscribe(string topic, bool prependDeviceId = true);
+
         public ushort Unubscribe(string topic, bool prependDeviceId = true);
     }
 }

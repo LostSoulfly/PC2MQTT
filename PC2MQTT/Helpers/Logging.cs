@@ -7,9 +7,11 @@ namespace PC2MQTT.Helpers
     public static class Logging
     {
         private static readonly string _path = "log.txt";
+        private static Settings _settings;
 
         public static void InitializeLogging(Settings settings)
         {
+            _settings = settings;
             BadLogger.EventSink.OnLogEvent += EventSink_OnLogEvent;
 
             LogManager.SetMinimumLogLevel(settings.config.logLevel);
@@ -17,9 +19,9 @@ namespace PC2MQTT.Helpers
 
         private static Delegate EventSink_OnLogEvent(string log)
         {
-            if (Program.settings.config.enableLogging)
+            if (_settings.config.enableLogging)
             {
-                if (Program.settings.config.logToConsole)
+                if (_settings.config.logToConsole)
                     Console.WriteLine(log);
                 else
                     File.AppendAllText(_path, log);

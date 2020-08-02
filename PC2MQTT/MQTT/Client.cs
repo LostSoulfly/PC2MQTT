@@ -79,16 +79,8 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        public void MqttDisconnect()
-        {
-            client.Disconnect();
-            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
-            client = null;
-        }
-
         public void MqttConnect()
         {
-
             if ((_autoReconnect) && (!_reconnectTimerStarted))
             {
                 _reconnectTimer.Start();
@@ -139,6 +131,13 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        public void MqttDisconnect()
+        {
+            client.Disconnect();
+            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
+            client = null;
+        }
+
         public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
         {
             // Check for connectivity? Or QoS level if message will be retained
@@ -157,7 +156,6 @@ namespace PC2MQTT.MQTT
 
             return messageId;
         }
-
 
         public ushort Unubscribe(string topic, bool prependDeviceId = true)
         {
@@ -178,14 +176,10 @@ namespace PC2MQTT.MQTT
             MessageReceivedByte?.Invoke(e.Topic.ResultantTopic(false), e.Message);
             MessageReceivedString?.Invoke(e.Topic.ResultantTopic(false), Encoding.UTF8.GetString(e.Message));
         }
-
     }
 
     public class MqttSettings
     {
-        public bool useFakeMqttServer = false;
-        public bool useFakeMqttDelays = true;
-        public bool useFakeMqttFailures = false;
         public string broker = "";
         public string deviceId = "PC2MQTT";
         public string password = "";
@@ -193,6 +187,9 @@ namespace PC2MQTT.MQTT
         public byte publishQosLevel = 2;
         public int reconnectInterval = 10000;
         public byte subscribeQosLevel = 2;
+        public bool useFakeMqttDelays = true;
+        public bool useFakeMqttFailures = false;
+        public bool useFakeMqttServer = false;
         public string user = "";
         public MqttWill will = new MqttWill();
     }

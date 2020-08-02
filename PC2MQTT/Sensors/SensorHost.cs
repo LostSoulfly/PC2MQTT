@@ -44,7 +44,6 @@ namespace PC2MQTT.Sensors
             Log = LogManager.GetCurrentClassLogger();
 
             IsCodeLoaded = false;
-
         }
 
         public SensorHost(ISensor sensor, IClient client, SensorManager sensorManager)
@@ -59,7 +58,6 @@ namespace PC2MQTT.Sensors
             IsCompiled = true;
 
             this.SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
-
         }
 
         public void Dispose()
@@ -127,7 +125,6 @@ namespace PC2MQTT.Sensors
 
         public bool Subscribe(string topic, bool prependDeviceId = true)
         {
-
             if (_client == null)
                 return false;
 

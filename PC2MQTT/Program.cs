@@ -11,11 +11,11 @@ namespace PC2MQTT
     internal class Program
     {
         public static readonly string Version = "0.1.0-dev";
-        public static IClient client;
-        public static SensorManager sensorManager;
-        public static Settings settings = new Settings();
         private static CancellationTokenSource _cancellationTokenSource;
+        private static IClient client;
         private static BadLogger.BadLogger Log;
+        private static SensorManager sensorManager;
+        private static Settings settings = new Settings();
 
         private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
@@ -73,7 +73,6 @@ namespace PC2MQTT
             client.TopicUnsubscribed += Client_TopicUnsubscribed;
 
             client.MqttConnect();
-
         }
 
         private static void InitializeSensors(bool useOnlyBuiltInScripts = true)
@@ -90,7 +89,8 @@ namespace PC2MQTT
                     settings.config.enabledSensors = available;
                     settings.SaveSettings();
                 }
-            } else
+            }
+            else
             {
                 Log.Info("Using only built-in scripts. (This improves runtime speeds and memory usage)");
                 sensorManager.LoadBuiltInScripts();
@@ -107,8 +107,6 @@ namespace PC2MQTT
                 Console.WriteLine("Generating default settings. Please edit config.json and re-launch the program.");
                 Environment.Exit(0);
             }
-
-            settings.SaveSettings();
         }
 
         private static void Main(string[] args)
@@ -147,8 +145,9 @@ namespace PC2MQTT
             client.MqttDisconnect();
 
             _cancellationTokenSource.Cancel();
+
+            settings.SaveSettings();
             Environment.Exit(0);
         }
-
     }
 }

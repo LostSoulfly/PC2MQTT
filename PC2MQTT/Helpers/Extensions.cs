@@ -1,10 +1,33 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace ExtensionMethods
 {
     public static class Extensions
     {
         public static string deviceId;
+
+        public static string LinuxBashResult(this string cmd)
+        {
+            var escapedArgs = cmd.Replace("\"", "\\\"");
+
+            var process = new Process()
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"{escapedArgs}\"",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            process.Start();
+            string result = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return result;
+        }
+
         public static string RemoveDeviceId(this string topic)
         {
             if (topic.Substring(0, 1) == "/") topic = topic[1..];
@@ -56,5 +79,25 @@ namespace ExtensionMethods
             return String.Format("{0:0.##} {1}", size, sizes[order]);
         }
 
+        public static string WindowsShellResult(this string cmd)
+        {
+            //var escapedArgs = cmd.Replace("\"", "\\\"");
+
+            var process = new Process()
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c {cmd}",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            process.Start();
+            string result = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return result;
+        }
     }
 }

@@ -27,6 +27,7 @@ namespace PC2MQTT.Sensors
         private Dictionary<string, SensorHost> sensorMultiLevelWildcardTopics;
         private Dictionary<string, SensorHost> sensorSingleLevelWildcardTopics;
         private ConcurrentDictionary<string, SensorHost> sensorTopics;
+
         public SensorManager(IClient client, Helpers.Settings settings)
         {
             this._client = client;
@@ -39,6 +40,26 @@ namespace PC2MQTT.Sensors
             sensorTopics = new ConcurrentDictionary<string, SensorHost>();
             sensorMultiLevelWildcardTopics = new Dictionary<string, SensorHost>();
             sensorSingleLevelWildcardTopics = new Dictionary<string, SensorHost>();
+        }
+
+        public void Dispose()
+        {
+            Log.Info("Disposing of SensorManager..");
+
+            lock (_sensorListLock)
+            {
+                for (int i = sensors.Count - 1; i > -1; i--)
+                {
+                    SensorHost sensor = sensors[i];
+                    if (sensors[i].IsCompiled)
+                    {
+                        Log.Debug($"Disposing sensor [{sensor.SensorIdentifier}]");
+                        sensor.Dispose();
+                        sensors.Remove(sensor);
+                        DisposeSensorHost(sensor);
+                    }
+                }
+            }
         }
 
         public void DisposeSensorHost(SensorHost sensorHost)
@@ -65,7 +86,6 @@ namespace PC2MQTT.Sensors
                             Log.Debug($"Skipping sensor: [{item.SensorIdentifier}]");
                         }
                     });
-
                 }
             }
         }
@@ -93,7 +113,6 @@ namespace PC2MQTT.Sensors
                 tasks.Add(Task.Run(() => LoadSensor(item)));
 
                 //availableSensors.Add(t.Result.SensorIdentifier);
-
             }
 
             Log.Debug("Waiting for all sensors to finish loading..");
@@ -102,79 +121,6 @@ namespace PC2MQTT.Sensors
             availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier));
 
             return availableSensors;
-        }
-
-        internal void LoadBuiltInScripts()
-        {
-            System.Reflection.Assembly ass = System.Reflection.Assembly.GetEntryAssembly();
-
-            foreach (System.Reflection.TypeInfo ti in ass.DefinedTypes)
-            {
-                if (ti.ImplementedInterfaces.Contains(typeof(ISensor)))
-                {
-                    Task.Run(() =>
-                    {
-                        lock (_sensorListLock)
-                        {
-                            this.sensors.Add(new SensorHost((ISensor)ass.CreateInstance(ti.FullName), _client, this));
-                        }
-                    });
-                    
-                }
-            }
-        }
-
-        private SensorHost LoadSensor(string filePath)
-        {
-            var s = new SensorHost(_client, this);
-            s.LoadFromFile(filePath);
-
-            if (s.IsCodeLoaded && s.IsCompiled)
-            {
-                lock (_sensorListLock)
-                {
-                    this.sensors.Add(s);
-                }
-
-                Log.Debug($"Found and loaded sensor: [{s.SensorIdentifier}]");
-            }
-            else
-            {
-                Log.Warn($"Unable to load/compile {filePath}: [{s.GetLastError}]");
-            }
-
-            return s;
-        }
-
-        internal void StartSensors()
-        {
-            lock (_sensorListLock)
-            {
-                foreach (var item in sensors)
-                {
-                    //Task<SensorHost> t;
-                    //t = Task.Run(() => LoadSensor(item));
-                    _ = Task.Run(() =>
-                      { 
-
-                        while (item.IsCompiled && !item.sensor.IsInitialized)
-                            Thread.Sleep(10);
-
-                          if (item != null && item.IsCompiled && item.sensor.IsInitialized)
-                          {
-                              Log.Trace($"StartSensor sensor: [{item.SensorIdentifier}]");
-                              item.sensor.SensorMain();
-                          } else
-                          {
-                              Log.Trace("Sensor is null, not compiled, or uninitialized. Skipping.");
-                          }
-                          
-                      });
-
-                }
-            }
-
-            sensorCleanupTimer.Start();
         }
 
         public bool MapTopicToSensor(string topic, SensorHost sensorHost, bool prependDeviceId = true)
@@ -315,6 +261,76 @@ namespace PC2MQTT.Sensors
             return result;
         }
 
+        internal void LoadBuiltInScripts()
+        {
+            System.Reflection.Assembly ass = System.Reflection.Assembly.GetEntryAssembly();
+
+            foreach (System.Reflection.TypeInfo ti in ass.DefinedTypes)
+            {
+                if (ti.ImplementedInterfaces.Contains(typeof(ISensor)))
+                {
+                    Task.Run(() =>
+                    {
+                        lock (_sensorListLock)
+                        {
+                            this.sensors.Add(new SensorHost((ISensor)ass.CreateInstance(ti.FullName), _client, this));
+                        }
+                    });
+                }
+            }
+        }
+
+        internal void StartSensors()
+        {
+            lock (_sensorListLock)
+            {
+                foreach (var item in sensors)
+                {
+                    //Task<SensorHost> t;
+                    //t = Task.Run(() => LoadSensor(item));
+                    _ = Task.Run(() =>
+                      {
+                          while (item.IsCompiled && !item.sensor.IsInitialized)
+                              Thread.Sleep(10);
+
+                          if (item != null && item.IsCompiled && item.sensor.IsInitialized)
+                          {
+                              Log.Trace($"StartSensor sensor: [{item.SensorIdentifier}]");
+                              item.sensor.SensorMain();
+                          }
+                          else
+                          {
+                              Log.Trace("Sensor is null, not compiled, or uninitialized. Skipping.");
+                          }
+                      });
+                }
+            }
+
+            sensorCleanupTimer.Start();
+        }
+
+        private SensorHost LoadSensor(string filePath)
+        {
+            var s = new SensorHost(_client, this);
+            s.LoadFromFile(filePath);
+
+            if (s.IsCodeLoaded && s.IsCompiled)
+            {
+                lock (_sensorListLock)
+                {
+                    this.sensors.Add(s);
+                }
+
+                Log.Debug($"Found and loaded sensor: [{s.SensorIdentifier}]");
+            }
+            else
+            {
+                Log.Warn($"Unable to load/compile {filePath}: [{s.GetLastError}]");
+            }
+
+            return s;
+        }
+
         private void SensorCleanupTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             Log.Trace("Starting a clean of uncompiled sensors");
@@ -333,26 +349,6 @@ namespace PC2MQTT.Sensors
                         var after = System.GC.GetTotalMemory(true);
 
                         Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
-                    }
-                }
-            }
-        }
-
-        public void Dispose()
-        {
-            Log.Info("Disposing of SensorManager..");
-
-            lock (_sensorListLock)
-            {
-                for (int i = sensors.Count - 1; i > -1; i--)
-                {
-                    SensorHost sensor = sensors[i];
-                    if (sensors[i].IsCompiled)
-                    {
-                        Log.Debug($"Disposing sensor [{sensor.SensorIdentifier}]");
-                        sensor.Dispose();
-                        sensors.Remove(sensor);
-                        DisposeSensorHost(sensor);
                     }
                 }
             }
