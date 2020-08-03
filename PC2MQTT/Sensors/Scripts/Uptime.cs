@@ -18,18 +18,21 @@ namespace PC2MQTT.Sensors
 
         public bool DidSensorCompile() => true;
 
+        public bool IsCompatibleWithCurrentRuntime() => true;
+
         public void Dispose()
         {
             Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            Uninitialize();
-            GC.SuppressFinalize(this);
+            Log = null;
+            fiveSeconds.Dispose();
+            sensorHost = null;
         }
 
         public string GetSensorIdentifier() => this.GetType().Name;
 
         public TimeSpan GetUpTime()
         {
-            if (CSScriptLib.Runtime.IsLinux)
+            if (CSScriptLib.Runtime.IsLinux || CSScriptLib.Runtime.IsMono)
             {
                 string output = "cat /proc/uptime".LinuxBashResult();
                 var uptime = output.Split(" ");
@@ -50,12 +53,8 @@ namespace PC2MQTT.Sensors
         public bool Initialize(SensorHost sensorHost)
         {
             Log = LogManager.GetCurrentClassLogger();
-
             this.sensorHost = sensorHost;
 
-            Log.Debug($"CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-
-            IsInitialized = true;
             return true;
         }
 
@@ -90,11 +89,15 @@ namespace PC2MQTT.Sensors
 
         public void Uninitialize()
         {
-            fiveSeconds.Stop();
-            fiveSeconds.Dispose();
+            if (fiveSeconds != null)
+            {
+                fiveSeconds.Stop();
+                fiveSeconds.Dispose();
+            }
         }
 
         [DllImport("kernel32")]
         private static extern UInt64 GetTickCount64();
+
     }
 }

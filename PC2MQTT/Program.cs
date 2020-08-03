@@ -3,6 +3,7 @@ using PC2MQTT.Helpers;
 using PC2MQTT.MQTT;
 using PC2MQTT.Sensors;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -79,21 +80,25 @@ namespace PC2MQTT
         {
             sensorManager = new SensorManager(client, settings);
 
+            List<string> available = new List<string>();
+
             if (!useOnlyBuiltInScripts)
             {
-                var available = sensorManager.LoadSensorScripts();
-
-                if (settings.config.enabledSensors.Count == 0)
-                {
-                    Log.Info("No sensors enabled, enabling all found sensors..");
-                    settings.config.enabledSensors = available;
-                    settings.SaveSettings();
-                }
+                CSScriptLib.RoslynEvaluator.LoadCompilers();
+                available.AddRange(sensorManager.LoadSensorScripts());
+                available.AddRange(sensorManager.LoadBuiltInScripts());
             }
             else
             {
                 Log.Info("Using only built-in scripts. (This improves runtime speeds and memory usage)");
-                sensorManager.LoadBuiltInScripts();
+                available.AddRange(sensorManager.LoadBuiltInScripts());
+            }
+
+            if (settings.config.enabledSensors.Count == 0)
+            {
+                Log.Info("No sensors enabled, enabling all found sensors..");
+                settings.config.enabledSensors = available;
+                settings.SaveSettings();
             }
 
             sensorManager.InitializeSensors(settings.config.enabledSensors);
@@ -141,10 +146,13 @@ namespace PC2MQTT
 
             Log.Info("Escape key pressed, shutting down..");
 
+            Log.Debug("Disposing of SensorManager..");
             sensorManager.Dispose();
+            Log.Debug("Disconnecting MQTT..");
             client.MqttDisconnect();
 
-            _cancellationTokenSource.Cancel();
+            t.Wait();
+            //_cancellationTokenSource.Cancel();
 
             settings.SaveSettings();
             Environment.Exit(0);

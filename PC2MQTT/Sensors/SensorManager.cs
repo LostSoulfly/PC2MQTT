@@ -14,18 +14,14 @@ namespace PC2MQTT.Sensors
 {
     public class SensorManager : IDisposable
     {
-        public List<SensorHost> sensors = new List<SensorHost>();
+        public ConcurrentDictionary<string, SensorHost> sensors = new ConcurrentDictionary<string, SensorHost>();
         private IClient _client;
-
-        private object _dictMultiLock = new object();
-        private object _dictSingleLock = new object();
-        private object _sensorListLock = new object();
 
         private Helpers.Settings _settings;
         private BadLogger.BadLogger Log;
         private System.Timers.Timer sensorCleanupTimer;
-        private Dictionary<string, SensorHost> sensorMultiLevelWildcardTopics;
-        private Dictionary<string, SensorHost> sensorSingleLevelWildcardTopics;
+        private ConcurrentDictionary<string, SensorHost> sensorMultiLevelWildcardTopics;
+        private ConcurrentDictionary<string, SensorHost> sensorSingleLevelWildcardTopics;
         private ConcurrentDictionary<string, SensorHost> sensorTopics;
 
         public SensorManager(IClient client, Helpers.Settings settings)
@@ -38,26 +34,22 @@ namespace PC2MQTT.Sensors
             sensorCleanupTimer.Elapsed += SensorCleanupTimer_Elapsed;
 
             sensorTopics = new ConcurrentDictionary<string, SensorHost>();
-            sensorMultiLevelWildcardTopics = new Dictionary<string, SensorHost>();
-            sensorSingleLevelWildcardTopics = new Dictionary<string, SensorHost>();
+            sensorMultiLevelWildcardTopics = new ConcurrentDictionary<string, SensorHost>();
+            sensorSingleLevelWildcardTopics = new ConcurrentDictionary<string, SensorHost>();
         }
 
         public void Dispose()
         {
             Log.Info("Disposing of SensorManager..");
 
-            lock (_sensorListLock)
+            foreach (var item in sensors)
             {
-                for (int i = sensors.Count - 1; i > -1; i--)
+                if (item.Value.IsCompiled)
                 {
-                    SensorHost sensor = sensors[i];
-                    if (sensors[i].IsCompiled)
-                    {
-                        Log.Debug($"Disposing sensor [{sensor.SensorIdentifier}]");
-                        sensor.Dispose();
-                        sensors.Remove(sensor);
-                        DisposeSensorHost(sensor);
-                    }
+                    Log.Debug($"Disposing sensor [{item.Value.SensorIdentifier}]");
+                    item.Value.Dispose();
+                    sensors.TryRemove(item.Value.SensorIdentifier, out var s);
+                    DisposeSensorHost(item.Value);
                 }
             }
         }
@@ -71,22 +63,20 @@ namespace PC2MQTT.Sensors
         public void InitializeSensors(List<string> enabledSensors)
         {
             Log.Trace("Initializing sensors..");
-            lock (_sensorListLock)
+
+            foreach (var item in sensors)
             {
-                foreach (var item in sensors)
+                Task.Run(() =>
                 {
-                    Task.Run(() =>
+                    if ((enabledSensors.Contains("*") || enabledSensors.Contains(item.Value.SensorIdentifier)) && item.Value.InitializeSensor())
                     {
-                        if ((enabledSensors.Contains("*") || enabledSensors.Contains(item.SensorIdentifier)) && item.InitializeSensor())
-                        {
-                            Log.Info($"Initialized sensor: [{item.SensorIdentifier}]");
-                        }
-                        else
-                        {
-                            Log.Debug($"Skipping sensor: [{item.SensorIdentifier}]");
-                        }
-                    });
-                }
+                        Log.Info($"Initialized sensor: [{item.Value.SensorIdentifier}]");
+                    }
+                    else
+                    {
+                        Log.Debug($"Skipping sensor: [{item.Value.SensorIdentifier}]");
+                    }
+                });
             }
         }
 
@@ -118,7 +108,7 @@ namespace PC2MQTT.Sensors
             Log.Debug("Waiting for all sensors to finish loading..");
             Task.WaitAll(tasks.ToArray());
 
-            availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier));
+            availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier).Where(ident => ident != null));
 
             return availableSensors;
         }
@@ -131,16 +121,12 @@ namespace PC2MQTT.Sensors
 
             if (topic.Contains("/#")) // multi-level wildcard topic
             {
-                lock (_dictMultiLock)
-                    sensorMultiLevelWildcardTopics.Add(topic.ResultantTopic(prependDeviceId, true), sensorHost);
+                result = sensorMultiLevelWildcardTopics.TryAdd(topic.ResultantTopic(prependDeviceId, true), sensorHost);
 
-                result = true;
             }
             else if (topic.Contains("/+"))// single level wildcard topic
             {
-                lock (_dictSingleLock)
-                    sensorSingleLevelWildcardTopics.Add(topic.ResultantTopic(prependDeviceId, true), sensorHost);
-                result = true;
+                result = sensorSingleLevelWildcardTopics.TryAdd(topic.ResultantTopic(prependDeviceId, true), sensorHost);
             }
             else
             {
@@ -163,31 +149,25 @@ namespace PC2MQTT.Sensors
                 return;
             }
 
-            lock (_dictMultiLock)
-            {
                 foreach (var item in sensorMultiLevelWildcardTopics)
                 {
-                    if (topic.Contains(item.Key))
+                    if (topic == item.Key || topic.Contains(item.Key + "/"))
                     {
                         Log.Trace($"Sending message for topic [{topic}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(topic.RemoveDeviceId(), message);
                         return;
                     }
                 }
-            }
 
-            lock (_dictSingleLock)
-            {
                 foreach (var item in sensorSingleLevelWildcardTopics)
                 {
-                    if (topic.Contains(item.Key))
+                    if (topic == item.Key || !topic.Substring(item.Key.Length + 1).Contains("/"))
                     {
                         Log.Trace($"Sending message for topic [{topic}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(topic.RemoveDeviceId(), message);
                         return;
                     }
                 }
-            }
         }
 
         public void UnmapAlltopics(SensorHost sensorHost)
@@ -204,8 +184,6 @@ namespace PC2MQTT.Sensors
                 }
             }
 
-            lock (_dictMultiLock)
-            {
                 foreach (var item in sensorMultiLevelWildcardTopics)
                 {
                     if (item.Value == sensorHost)
@@ -215,10 +193,7 @@ namespace PC2MQTT.Sensors
                         sensorMultiLevelWildcardTopics.Remove(item.Key, out var removed);
                     }
                 }
-            }
 
-            lock (_dictSingleLock)
-            {
                 foreach (var item in sensorSingleLevelWildcardTopics)
                 {
                     if (item.Value == sensorHost)
@@ -228,7 +203,6 @@ namespace PC2MQTT.Sensors
                         sensorSingleLevelWildcardTopics.Remove(item.Key, out var removed);
                     }
                 }
-            }
         }
 
         public bool UnmapTopicToSensor(string topic, SensorHost sensorHost)
@@ -240,14 +214,14 @@ namespace PC2MQTT.Sensors
 
             if (topic.Contains("/#")) // multi-level wildcard topic
             {
-                lock (_dictMultiLock)
-                    sensorMultiLevelWildcardTopics.Remove(topic.Replace("/#", ""));
+
+                    sensorMultiLevelWildcardTopics.TryRemove(topic.Replace("/#", ""), out var sMultiWild);
                 result = true;
             }
             else if (topic.Contains("/+")) // single level wildcard topic
             {
-                lock (_dictSingleLock)
-                    sensorSingleLevelWildcardTopics.Remove(topic.Replace("/+", ""));
+
+                    sensorSingleLevelWildcardTopics.TryRemove(topic.Replace("/+", ""), out var sSingleWild);
                 result = true;
             }
             else
@@ -261,49 +235,59 @@ namespace PC2MQTT.Sensors
             return result;
         }
 
-        internal void LoadBuiltInScripts()
+        internal List<string> LoadBuiltInScripts()
         {
             System.Reflection.Assembly ass = System.Reflection.Assembly.GetEntryAssembly();
+
+
+            List<string> availableSensors = new List<string>();
+
+            var tasks = new List<Task<SensorHost>>();
 
             foreach (System.Reflection.TypeInfo ti in ass.DefinedTypes)
             {
                 if (ti.ImplementedInterfaces.Contains(typeof(ISensor)))
                 {
-                    Task.Run(() =>
+                    tasks.Add(Task.Run(() =>
                     {
-                        lock (_sensorListLock)
-                        {
-                            this.sensors.Add(new SensorHost((ISensor)ass.CreateInstance(ti.FullName), _client, this));
-                        }
-                    });
+                        var s = new SensorHost((ISensor)ass.CreateInstance(ti.FullName), _client, this);
+
+                        if (s != null && !this.sensors.TryAdd(s.SensorIdentifier, s))
+                            Log.Debug($"Skipping built-in sensor [{s.SensorIdentifier}]");
+
+                        return s;
+                    }));
                 }
             }
+            Task.WaitAll(tasks.ToArray());
+
+            availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier).Where(ident => ident != null));
+
+            return availableSensors;
+
         }
 
         internal void StartSensors()
         {
-            lock (_sensorListLock)
+            foreach (var item in sensors)
             {
-                foreach (var item in sensors)
-                {
-                    //Task<SensorHost> t;
-                    //t = Task.Run(() => LoadSensor(item));
-                    _ = Task.Run(() =>
-                      {
-                          while (item.IsCompiled && !item.sensor.IsInitialized)
-                              Thread.Sleep(10);
+                //Task<SensorHost> t;
+                //t = Task.Run(() => LoadSensor(item));
+                _ = Task.Run(() =>
+                    {
+                        while (item.Value.IsCompiled && !item.Value.sensor.IsInitialized)
+                            Thread.Sleep(10);
 
-                          if (item != null && item.IsCompiled && item.sensor.IsInitialized)
-                          {
-                              Log.Trace($"StartSensor sensor: [{item.SensorIdentifier}]");
-                              item.sensor.SensorMain();
-                          }
-                          else
-                          {
-                              Log.Trace("Sensor is null, not compiled, or uninitialized. Skipping.");
-                          }
-                      });
-                }
+                        if (item.Value != null && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
+                        {
+                            Log.Trace($"StartSensor sensor: [{item.Value.SensorIdentifier}]");
+                            item.Value.sensor.SensorMain();
+                        }
+                        else
+                        {
+                            Log.Trace("Sensor is null, not compiled, or uninitialized. Skipping.");
+                        }
+                    });
             }
 
             sensorCleanupTimer.Start();
@@ -316,12 +300,10 @@ namespace PC2MQTT.Sensors
 
             if (s.IsCodeLoaded && s.IsCompiled)
             {
-                lock (_sensorListLock)
-                {
-                    this.sensors.Add(s);
-                }
-
-                Log.Debug($"Found and loaded sensor: [{s.SensorIdentifier}]");
+                if (!this.sensors.TryAdd(s.SensorIdentifier, s))
+                    Log.Debug($"Unable to load sensor [{s.SensorIdentifier}] - same sensor name exists?");
+                else
+                    Log.Debug($"Found and loaded sensor [{s.SensorIdentifier}]");
             }
             else
             {
@@ -334,22 +316,20 @@ namespace PC2MQTT.Sensors
         private void SensorCleanupTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             Log.Trace("Starting a clean of uncompiled sensors");
-            lock (_sensorListLock)
-            {
-                for (int i = sensors.Count - 1; i > -1; i--)
-                {
-                    SensorHost sensor = sensors[i];
-                    if (!sensors[i].IsCompiled || !sensors[i].sensor.IsInitialized)
-                    {
-                        Log.Info($"Removing unused sensor [{sensor.SensorIdentifier}]");
-                        sensor.Dispose();
-                        sensors.Remove(sensor);
-                        DisposeSensorHost(sensor);
-                        var before = System.GC.GetTotalMemory(false);
-                        var after = System.GC.GetTotalMemory(true);
 
-                        Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
-                    }
+
+            foreach (var item in sensors)
+            {
+                if (!item.Value.IsCompiled || !item.Value.sensor.IsInitialized)
+                {
+                    Log.Info($"Removing unused sensor [{item.Value.SensorIdentifier}]");
+                    item.Value.Dispose();
+                    sensors.Remove(item.Key, out var s);
+                    DisposeSensorHost(item.Value);
+                    var before = System.GC.GetTotalMemory(false);
+                    var after = System.GC.GetTotalMemory(true);
+
+                    Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
                 }
             }
         }

@@ -54,8 +54,11 @@ namespace PC2MQTT.Sensors
 
             Log = LogManager.GetCurrentClassLogger();
 
-            IsCodeLoaded = true;
-            IsCompiled = true;
+            if (sensor.IsCompatibleWithCurrentRuntime())
+            {
+                IsCodeLoaded = true;
+                IsCompiled = true;
+            }
 
             this.SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
         }
@@ -70,10 +73,18 @@ namespace PC2MQTT.Sensors
         {
             if (_hasBeendisposed) return;
 
-            sensor.IsInitialized = false;
             _sensorManager.UnmapAlltopics(this);
-            UninitializeSensor();
-            if (sensor != null) sensor.Dispose();
+            try
+            {
+
+                if (sensor != null)
+                {
+                    UninitializeSensor();
+                    sensor.Dispose();
+                }
+            }
+            catch (Exception ex) { Log.Warn($"Unable to properly dispose of {sensor.GetSensorIdentifier()}: {ex.Message}"); }
+
             code = null;
             IsCodeLoaded = false;
             IsCompiled = false;
@@ -88,9 +99,9 @@ namespace PC2MQTT.Sensors
         public bool InitializeSensor()
         {
             if (IsCompiled)
-                return sensor.Initialize(this);
+                sensor.IsInitialized = sensor.Initialize(this);
 
-            return false;
+            return sensor.IsInitialized;
         }
 
         public void LoadFromFile(string filePath, bool compile = true)
@@ -145,9 +156,11 @@ namespace PC2MQTT.Sensors
 
         public void UninitializeSensor()
         {
-            if (IsCompiled)
-                if (sensor != null && sensor.IsInitialized)
-                    sensor.Uninitialize();
+            if (sensor != null && IsCompiled && sensor.IsInitialized)
+            {
+                sensor.Uninitialize();
+                sensor.IsInitialized = false;
+            }
         }
 
         public bool Unsubscribe(string topic, bool prependDeviceId = true)
@@ -211,7 +224,8 @@ namespace PC2MQTT.Sensors
                     .ReferenceAssembly(Assembly.GetExecutingAssembly().Location)
                     .LoadCode<ISensor>(code);
 
-                IsCompiled = sensor.DidSensorCompile();
+                if (sensor.IsCompatibleWithCurrentRuntime() && sensor.DidSensorCompile())
+                    IsCompiled = true;
 
                 if (IsCompiled)
                     SensorIdentifier = sensor.GetSensorIdentifier().ToLower();

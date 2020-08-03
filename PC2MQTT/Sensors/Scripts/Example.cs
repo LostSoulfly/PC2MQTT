@@ -30,8 +30,7 @@ namespace PC2MQTT.Sensors
         public void Dispose()
         {
             Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            unloadTimer.Stop();
-            Uninitialize();
+            unloadTimer = null;
             GC.SuppressFinalize(this);
         }
 
@@ -52,11 +51,10 @@ namespace PC2MQTT.Sensors
 
             Log.Info($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
             Log.Info($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
-            // Initialize needs to return true, but you can stall for a while or run processor-intensive things beforehand.
-            // Control is returned to the sensor in SensorMain after Initialization.
+            
+            // Initialize needs to return true relatively quickly but you can stall for a while or run processor-intensive things beforehand.
+            // Control is returned to the sensor in SensorMain after initialization of all sensors.
             Log.Info($"We're not done initializing yet.. just a bit longer..");
-            System.Threading.Thread.Sleep(5000);
-            Log.Info($"We're not done initializing yet.. almost..");
             System.Threading.Thread.Sleep(5000);
 
             Log.Info($"Finishing initialization in {this.GetSensorIdentifier()}");
@@ -64,9 +62,8 @@ namespace PC2MQTT.Sensors
             // Let PC2MQTT know that we're done and initialized properly.
             // If for some reason your code didn't initialize properly you can return false
             // Just make sure to clean up after yourself as best you can.
-            // IsInitialized = false sensors are cleaned up automatically after all sensors are done loading.
-            IsInitialized = true;
-            return IsInitialized;
+            // uninitialized sensors are cleaned up automatically after all sensors are done loading.
+            return true;
         }
 
         // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
@@ -75,9 +72,10 @@ namespace PC2MQTT.Sensors
             Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
 
             // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
-            if (topic == "/example2/unload_example_script")
+            if (topic == "/example2/unload_example_script" && message == "unload")
             {
-                Log.Info("Disposing of myself...");
+                Log.Info("Disposing of myself in 5 seconds..");
+                System.Threading.Thread.Sleep(5000);
                 sensorHost.Dispose();
             }
         }
@@ -91,10 +89,18 @@ namespace PC2MQTT.Sensors
             if (!sensorHost.Subscribe("/example/status"))
                 Log.Info("Failed to subscribe to /example/status");
 
+            // Since this is a direct MQTT message to /example/status and we're subscribed, we should receive it
+            if (!sensorHost.Publish("/example/status", "1", prependDeviceId: true, retain: false))
+                Log.Info("Failed to publish to /example/status");
+
             // subscribe to all levels above and including /example/
             // for example, /example/hello/world/test would trigger.
             if (!sensorHost.Subscribe("/example/#"))
                 Log.Info("Failed to subscribe to /example/#");
+
+            // We should receive both of these because /# is a multi-level wildcard
+            sensorHost.Publish("/example/test", "2", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example/test/should_also_receive/this_message", "3", prependDeviceId: true, retain: false);
 
             // Subscribe to all /example2/ topics one level up.
             // For example, /example2/hello would trigger
@@ -102,17 +108,10 @@ namespace PC2MQTT.Sensors
             if (!sensorHost.Subscribe("/example2/+"))
                 Log.Info("Failed to subscribe to /example2/+");
 
-            // These two will be received by this script
-            if (!sensorHost.Publish("/example/status", "1", prependDeviceId: true, retain: false))
-                Log.Info("Failed to publish to /example/status");
+            // We should receive the first message but not the second, because /+ is only a single-level wildcard.
+            sensorHost.Publish("/example2/test", "4", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example2/test/should_not_receive", "5", prependDeviceId: true, retain: false);
 
-            if (!sensorHost.Publish("/example/uptime/status", "1", prependDeviceId: true, retain: false))
-                Log.Info("Failed to publish to /example/uptime/status");
-
-            // This one will not.. because /example2/+ only covers one topic level above itself.
-            // Note that "true, false" is exactly the same as above just without argument names shown
-            if (!sensorHost.Publish("/example2/uptime/status", "1", true, false))
-                Log.Info("Failed to publish to /example2/uptime/status");
 
             Log.Info("In 10 seconds I will send an unload message to /example2/unload_example_script");
 
@@ -124,11 +123,15 @@ namespace PC2MQTT.Sensors
             unloadTimer.Elapsed += delegate
             {
                 Log.Info("Sending unload MQTT message to myself");
-                if (!sensorHost.Publish("/example2/unload_example_script", ""))
+                if (!sensorHost.Publish("/example2/unload_example_script", "unload"))
                     Log.Info("Failed to publish to /example2/unload_example_script");
             };
             // Start the timer
             unloadTimer.Start();
+
+
+            // At any time you can unsubscribe from all topics but it's not necessary here
+            // sensorHost.UnsubscribeAllTopics();
 
             while (this.IsInitialized)
             {
@@ -150,16 +153,24 @@ namespace PC2MQTT.Sensors
                 // this._sensorHost.Unsubscribe("/example/#");
                 // this._sensorHost.Unsubscribe("/example2/+");
 
-                // At any time you can unsubscribe from all topics but it's not necessary here
-                this.sensorHost.UnsubscribeAllTopics();
-
                 // stop our timer to prevent any issues!
-                this.unloadTimer.Stop();
-
-                // Finishes uninitializing this sensor, unmaps all topics, and disposes of the remaining bits
-                this.sensorHost.DisposeSensor();
-                IsInitialized = false;
+                if (unloadTimer != null) unloadTimer.Stop();
             }
+        }
+
+        public bool IsCompatibleWithCurrentRuntime()
+        {
+            // Simple way to set compatibility..
+            bool compatible = true;
+
+            // If incompatible with a specific OS/Runtime, set that one below to false and remove all the others that your sensor runs on
+            if (CSScriptLib.Runtime.IsCore) compatible = true;
+            if (CSScriptLib.Runtime.IsLinux) compatible = true;
+            if (CSScriptLib.Runtime.IsMono) compatible = true;
+            if (CSScriptLib.Runtime.IsNet) compatible = true;
+            if (CSScriptLib.Runtime.IsWin) compatible = true;
+
+            return compatible;
         }
     }
 }
