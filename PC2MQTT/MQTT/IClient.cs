@@ -10,7 +10,7 @@
 
         public event MqttMessagePublished MessagePublished;
 
-        public event MessageReceivedByte MessageReceivedByte;
+        //public event MessageReceivedByte MessageReceivedByte;
 
         public event MessageReceivedString MessageReceivedString;
 
@@ -24,10 +24,12 @@
 
         public void MqttDisconnect();
 
-        public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false);
+        public void QueueMessage(MqttMessage message);
 
-        public ushort Subscribe(string topic, bool prependDeviceId = true);
+        public MqttMessage Publish(MqttMessage message);
 
-        public ushort Unubscribe(string topic, bool prependDeviceId = true);
+        public MqttMessage Subscribe(MqttMessage message);
+
+        public MqttMessage Unsubscribe(MqttMessage message);
     }
 }

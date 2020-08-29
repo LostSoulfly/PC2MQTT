@@ -12,7 +12,6 @@ namespace PC2MQTT
     internal class Program
     {
         public static readonly string Version = "0.1.0-dev";
-        private static CancellationTokenSource _cancellationTokenSource;
         private static IClient client;
         private static BadLogger.BadLogger Log;
         private static SensorManager sensorManager;
@@ -21,6 +20,9 @@ namespace PC2MQTT
         private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
             Log.Warn($"Connection to MQTT server closed: {reason}");
+            //todo: Unmap all topics in sensormanager?
+            // Notify sensors the server connection was closed?
+            // auto-resub to topics on reconnection?
         }
 
         private static void Client_ConnectionConnected()
@@ -124,17 +126,8 @@ namespace PC2MQTT
             Logging.InitializeLogging(settings);
             Log = LogManager.GetCurrentClassLogger();
 
-            _cancellationTokenSource = new CancellationTokenSource();
-            var token = _cancellationTokenSource.Token;
-
             Task t;
-            t = Task.Run(() => InitializeMqtt(), token);
-
-            while (!t.IsCompleted)
-            {
-                //Log.Trace("Waiting for MQTT to initialize..");
-                System.Threading.Thread.Sleep(100);
-            }
+            t = Task.Run(() => InitializeMqtt());
 
             InitializeSensors(settings.config.useOnlyBuiltInScripts);
             sensorManager.StartSensors();
@@ -150,9 +143,6 @@ namespace PC2MQTT
             sensorManager.Dispose();
             Log.Debug("Disconnecting MQTT..");
             client.MqttDisconnect();
-
-            t.Wait();
-            //_cancellationTokenSource.Cancel();
 
             settings.SaveSettings();
             Environment.Exit(0);

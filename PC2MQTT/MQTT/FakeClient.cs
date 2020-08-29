@@ -16,7 +16,7 @@ namespace PC2MQTT.MQTT
 
         public event MqttMessagePublished MessagePublished;
 
-        public event MessageReceivedByte MessageReceivedByte;
+        //public event MessageReceivedByte MessageReceivedByte;
 
         public event MessageReceivedString MessageReceivedString;
 
@@ -65,27 +65,6 @@ namespace PC2MQTT.MQTT
             ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
         }
 
-        public ushort Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
-        {
-            var success = SometimesFalse();
-
-            if (!success) Log.Trace($"Randomly failing Publish call for {topic}: {message}");
-
-            if (success)
-            {
-                if (_messageId > 0) MessagePublished?.Invoke(topic, message);
-
-                Task.Run(() =>
-                {
-                    System.Threading.Thread.Sleep(GetRandom());
-                    MessageReceivedByte?.Invoke(topic.ResultantTopic(false), Encoding.UTF8.GetBytes(message));
-                    MessageReceivedString?.Invoke(topic.ResultantTopic(false), message);
-                });
-            }
-            else { return 0; }
-            return _messageId++;
-        }
-
         public bool SometimesFalse()
         {
             if (!_mqttSettings.useFakeMqttFailures)
@@ -94,34 +73,67 @@ namespace PC2MQTT.MQTT
             return _random.Next(0, 9) != 0;
         }
 
-        public ushort Subscribe(string topic, bool prependDeviceId = true)
+
+        public void QueueMessage(MqttMessage message)
         {
-            System.Threading.Thread.Sleep(GetRandom(250));
-
-            var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Subscribe call for {topic}");
-
-            if (success)
-                TopicSubscribed?.Invoke(topic);
-            else
-                return 0;
-
-            return _messageId++;
+            throw new NotImplementedException();
         }
 
-        public ushort Unubscribe(string topic, bool prependDeviceId = true)
+        public MqttMessage Publish(MqttMessage message)
+        {
+            var success = SometimesFalse();
+
+            if (!success) Log.Trace($"Randomly failing Publish call for {message.topic}: {message.message}");
+
+            if (success)
+            {
+                message.messageId = _messageId++;
+
+                MessagePublished?.Invoke(message);
+
+                message.messageId = _messageId++;
+
+                Task.Run(() =>
+                {
+                    System.Threading.Thread.Sleep(GetRandom());
+                    MessageReceivedString?.Invoke(message);
+                });
+            }
+            return message;
+        }
+
+        public MqttMessage Subscribe(MqttMessage message)
+        {
+
+            System.Threading.Thread.Sleep(GetRandom(250));
+
+            var success = SometimesFalse();
+            if (!success) Log.Trace($"Randomly failing Subscribe call for {message.topic}");
+
+            if (success)
+            {
+                message.messageId = _messageId++;
+                TopicSubscribed?.Invoke(message);
+            }
+
+            return message;
+        }
+
+        public MqttMessage Unsubscribe(MqttMessage message)
         {
             System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Unubscribe call for {topic}");
+            if (!success) Log.Trace($"Randomly failing Unubscribe call for {message.topic}");
 
             if (success)
-                TopicUnsubscribed?.Invoke(topic);
-            else
-                return 0;
+            {
+                message.messageId = _messageId++;
+                TopicUnsubscribed?.Invoke(message);
+            }
 
-            return _messageId++;
+
+            return message;
         }
     }
 }

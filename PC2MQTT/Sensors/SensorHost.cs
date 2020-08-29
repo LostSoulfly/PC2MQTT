@@ -123,13 +123,19 @@ namespace PC2MQTT.Sensors
         {
             if (_client == null)
                 return false;
-            topic = topic.ResultantTopic(prependDeviceId);
+
+            MqttMessage msg = new MqttMessage(topic, message, prependDeviceId, retain);
+            msg.messageType = MqttMessage.MessageType.MQTT_PUBLISH;
+            msg.message = message;
+            msg.topic = topic.ResultantTopic(prependDeviceId);
+            msg.prependDeviceId = prependDeviceId;
+            msg.retain = retain;
 
             Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}]");
 
-            var success = _client.Publish(topic, message, prependDeviceId, retain);
+            var success = _client.Publish(msg);
 
-            if (success > 0) return true;
+            if (success.messageId > 0) return true;
 
             return false;
         }
@@ -141,10 +147,16 @@ namespace PC2MQTT.Sensors
 
             topic = topic.ResultantTopic(prependDeviceId);
 
-            var success = _client.Subscribe(topic, prependDeviceId);
+            MqttMessage msg = new MqttMessage();
+            msg.topic = topic;
+            msg.messageType = MqttMessage.MessageType.MQTT_SUBSCRIBE;
+            msg.prependDeviceId = prependDeviceId;
+
+
+            var success = _client.Subscribe(msg);
             Log.Trace($"[{SensorIdentifier}] subscribing to [{topic}] ({success})");
 
-            if (success > 0)
+            if (success.messageId > 0)
             {
                 _sensorManager.MapTopicToSensor(topic, this, prependDeviceId);
 

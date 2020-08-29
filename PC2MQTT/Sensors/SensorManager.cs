@@ -1,5 +1,6 @@
 ﻿using BadLogger;
 using ExtensionMethods;
+using PC2MQTT.Helpers;
 using PC2MQTT.MQTT;
 using System;
 using System.Collections.Concurrent;
@@ -178,31 +179,46 @@ namespace PC2MQTT.Sensors
             {
                 if (item.Value == sensorHost)
                 {
+                    MqttMessage mTopic = new MqttMessage();
+                    mTopic.messageType = MqttMessage.MessageType.MQTT_UNSUBSCRIBE;
+                    mTopic.topic = item.Key;
+                    mTopic.prependDeviceId = false;
+
                     Log.Debug($"Unsubscribing from [{item.Key}] for [{item.Value.sensor.GetSensorIdentifier()}]");
-                    _client.Unubscribe(item.Key, false);
+                    _client.Unsubscribe(mTopic);
                     sensorTopics.TryRemove(item.Key, out var removed);
                 }
             }
 
-                foreach (var item in sensorMultiLevelWildcardTopics)
+            foreach (var item in sensorMultiLevelWildcardTopics)
+            {
+                if (item.Value == sensorHost)
                 {
-                    if (item.Value == sensorHost)
-                    {
-                        Log.Debug($"Unsubscribing from [{item.Key}/#] for [{item.Value.sensor.GetSensorIdentifier()}]");
-                        _client.Unubscribe(item.Key + "/#", false);
-                        sensorMultiLevelWildcardTopics.Remove(item.Key, out var removed);
-                    }
-                }
+                    MqttMessage mMulti = new MqttMessage();
+                    mMulti.messageType = MqttMessage.MessageType.MQTT_UNSUBSCRIBE;
+                    mMulti.topic = item.Key + "/#";
+                    mMulti.prependDeviceId = false;
 
-                foreach (var item in sensorSingleLevelWildcardTopics)
-                {
-                    if (item.Value == sensorHost)
-                    {
-                        Log.Debug($"Unsubscribing from [{item.Key}/+] for [{item.Value.sensor.GetSensorIdentifier()}]");
-                        _client.Unubscribe(item.Key + "/+", false);
-                        sensorSingleLevelWildcardTopics.Remove(item.Key, out var removed);
-                    }
+                    Log.Debug($"Unsubscribing from [{item.Key}/#] for [{item.Value.sensor.GetSensorIdentifier()}]");
+                    _client.Unsubscribe(mMulti);
+                    sensorMultiLevelWildcardTopics.Remove(item.Key, out var removed);
                 }
+            }
+
+            foreach (var item in sensorSingleLevelWildcardTopics)
+            {
+                if (item.Value == sensorHost)
+                {
+                    MqttMessage mSingle = new MqttMessage();
+                    mSingle.messageType = MqttMessage.MessageType.MQTT_UNSUBSCRIBE;
+                    mSingle.topic = item.Key + "/+";
+                    mSingle.prependDeviceId = false;
+
+                    Log.Debug($"Unsubscribing from [{item.Key}/+] for [{item.Value.sensor.GetSensorIdentifier()}]");
+                    _client.Unsubscribe(mSingle);
+                    sensorSingleLevelWildcardTopics.Remove(item.Key, out var removed);
+                }
+            }
         }
 
         public bool UnmapTopicToSensor(string topic, SensorHost sensorHost)
@@ -271,8 +287,6 @@ namespace PC2MQTT.Sensors
         {
             foreach (var item in sensors)
             {
-                //Task<SensorHost> t;
-                //t = Task.Run(() => LoadSensor(item));
                 _ = Task.Run(() =>
                     {
                         while (item.Value.IsCompiled && !item.Value.sensor.IsInitialized)

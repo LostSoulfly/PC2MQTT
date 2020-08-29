@@ -72,7 +72,7 @@ namespace PC2MQTT.Sensors
             Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
 
             // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
-            if (topic == "/example2/unload_example_script" && message == "unload")
+            if (topic == "/example3/unload_example_script" && message == "unload")
             {
                 Log.Info("Disposing of myself in 5 seconds..");
                 System.Threading.Thread.Sleep(5000);
@@ -86,7 +86,7 @@ namespace PC2MQTT.Sensors
             Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
             // Subscribe to JUST /example/status topic
-            if (!sensorHost.Subscribe("/example/status"))
+            if (!sensorHost.Subscribe("/example1/status"))
                 Log.Info("Failed to subscribe to /example/status");
 
             // Since this is a direct MQTT message to /example/status and we're subscribed, we should receive it
@@ -95,22 +95,22 @@ namespace PC2MQTT.Sensors
 
             // subscribe to all levels above and including /example/
             // for example, /example/hello/world/test would trigger.
-            if (!sensorHost.Subscribe("/example/#"))
+            if (!sensorHost.Subscribe("/example2/#"))
                 Log.Info("Failed to subscribe to /example/#");
 
             // We should receive both of these because /# is a multi-level wildcard
-            sensorHost.Publish("/example/test", "2", prependDeviceId: true, retain: false);
-            sensorHost.Publish("/example/test/should_also_receive/this_message", "3", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example2/test", "2", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example2/test/should_also_receive/this_message", "3", prependDeviceId: true, retain: false);
 
             // Subscribe to all /example2/ topics one level up.
             // For example, /example2/hello would trigger
             // but /example2/hello/test would not.
-            if (!sensorHost.Subscribe("/example2/+"))
+            if (!sensorHost.Subscribe("/example3/+"))
                 Log.Info("Failed to subscribe to /example2/+");
 
             // We should receive the first message but not the second, because /+ is only a single-level wildcard.
-            sensorHost.Publish("/example2/test", "4", prependDeviceId: true, retain: false);
-            sensorHost.Publish("/example2/test/should_not_receive", "5", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example3/test", "4", prependDeviceId: true, retain: false);
+            sensorHost.Publish("/example3/test/should_not_receive", "5", prependDeviceId: true, retain: false);
 
 
             Log.Info("In 10 seconds I will send an unload message to /example2/unload_example_script");
@@ -123,8 +123,8 @@ namespace PC2MQTT.Sensors
             unloadTimer.Elapsed += delegate
             {
                 Log.Info("Sending unload MQTT message to myself");
-                if (!sensorHost.Publish("/example2/unload_example_script", "unload"))
-                    Log.Info("Failed to publish to /example2/unload_example_script");
+                if (!sensorHost.Publish("/example3/unload_example_script", "unload"))
+                    Log.Info("Failed to publish to /example3/unload_example_script");
             };
             // Start the timer
             unloadTimer.Start();
