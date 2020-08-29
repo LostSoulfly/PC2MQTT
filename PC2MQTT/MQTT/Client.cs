@@ -89,6 +89,11 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        private void Client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         public void MqttConnect()
         {
             if ((_autoReconnect) && (!_reconnectTimerStarted))
@@ -146,6 +151,8 @@ namespace PC2MQTT.MQTT
             }
 
 
+            _queueCancellationTokenSource = new CancellationTokenSource();
+            _queueAutoResetEvent = new AutoResetEvent(false);
 
             Task t;
             t = Task.Run(() => ProcessMessageQueue(), _queueCancellationTokenSource.Token);

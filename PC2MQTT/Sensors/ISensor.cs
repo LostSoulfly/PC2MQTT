@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PC2MQTT.MQTT;
+using System;
 
 namespace PC2MQTT.Sensors
 {
@@ -16,7 +17,7 @@ namespace PC2MQTT.Sensors
 
         public bool Initialize(SensorHost sensorInfo);
 
-        public void ProcessMessage(string topic, string message);
+        public void ProcessMessage(MqttMessage mqttMessage);
 
         public void SensorMain();
 

@@ -1,4 +1,5 @@
 ﻿using BadLogger;
+using PC2MQTT.MQTT;
 using System;
 using System.Timers;
 
@@ -67,12 +68,12 @@ namespace PC2MQTT.Sensors
         }
 
         // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
-        public void ProcessMessage(string topic, string message)
+        public void ProcessMessage(MqttMessage mqttMessage)
         {
-            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{topic}]: {message}");
+            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.topic}]: {mqttMessage.message}");
 
             // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
-            if (topic == "/example3/unload_example_script" && message == "unload")
+            if (mqttMessage.topic == "/example3/unload_example_script" && mqttMessage.message == "unload")
             {
                 Log.Info("Disposing of myself in 5 seconds..");
                 System.Threading.Thread.Sleep(5000);

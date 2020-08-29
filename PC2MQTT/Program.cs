@@ -30,23 +30,6 @@ namespace PC2MQTT
             Log.Info($"Connected to MQTT server");
         }
 
-        private static void Client_MessagePublished(string topic, string message)
-        {
-        }
-
-        private static void Client_MessageReceivedString(string topic, string message)
-        {
-            Log.Trace($"Message received for [{topic}]: {message}");
-            sensorManager.ProcessMessage(topic, message);
-        }
-
-        private static void Client_TopicSubscribed(string topic)
-        {
-        }
-
-        private static void Client_TopicUnsubscribed(string topic)
-        {
-        }
 
         private static void InitializeExtensions()
         {
@@ -76,6 +59,27 @@ namespace PC2MQTT
             client.TopicUnsubscribed += Client_TopicUnsubscribed;
 
             client.MqttConnect();
+        }
+
+        private static void Client_MessagePublished(MqttMessage mqttMessage)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private static void Client_TopicSubscribed(MqttMessage mqttMessage)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private static void Client_TopicUnsubscribed(MqttMessage mqttMessage)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private static void Client_MessageReceivedString(MqttMessage mqttMessage)
+        {
+            Log.Trace($"Message received for [{mqttMessage.topic}]: {mqttMessage.message}");
+            sensorManager.ProcessMessage(mqttMessage);
         }
 
         private static void InitializeSensors(bool useOnlyBuiltInScripts = true)

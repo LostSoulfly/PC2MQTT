@@ -175,18 +175,18 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public bool Unsubscribe(string topic, bool prependDeviceId = true)
+        public bool Unsubscribe(MqttMessage mqttMessage, bool prependDeviceId = true)
         {
             if (_client == null)
                 return false;
 
-            topic = topic.ResultantTopic(prependDeviceId);
-            var success = _client.Unubscribe(topic, prependDeviceId);
-            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{topic}] ({success})");
+            mqttMessage.topic = mqttMessage.topic.ResultantTopic(prependDeviceId);
+            var success = _client.Unsubscribe(mqttMessage);
+            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.topic}] ({success})");
 
-            if (success > 0)
+            if (success.messageId > 0)
             {
-                _sensorManager.UnmapTopicToSensor(topic, this);
+                _sensorManager.UnmapTopicToSensor(mqttMessage.topic, this);
                 return true;
             }
 

@@ -137,14 +137,14 @@ namespace PC2MQTT.Sensors
             return result;
         }
 
-        public void ProcessMessage(string topic, string message)
+        public void ProcessMessage(MqttMessage mqttMessage)
         {
             SensorHost sensorHost;
 
-            if (sensorTopics.TryGetValue(topic, out sensorHost))
+            if (sensorTopics.TryGetValue(mqttMessage.topic, out sensorHost))
             {
-                Log.Trace($"Sending message for topic [{topic}] to [{sensorHost.SensorIdentifier}]");
-                sensorHost.sensor.ProcessMessage(topic.RemoveDeviceId(), message);
+                Log.Trace($"Sending message for topic [{mqttMessage.topic}] to [{sensorHost.SensorIdentifier}]");
+                sensorHost.sensor.ProcessMessage(mqttMessage);
 
                 // Found a basic topic, no need to search the wildcards
                 return;
@@ -152,20 +152,20 @@ namespace PC2MQTT.Sensors
 
                 foreach (var item in sensorMultiLevelWildcardTopics)
                 {
-                    if (topic == item.Key || topic.Contains(item.Key + "/"))
+                    if (mqttMessage.topic == item.Key || mqttMessage.topic.Contains(item.Key + "/"))
                     {
-                        Log.Trace($"Sending message for topic [{topic}] to [{item.Value.SensorIdentifier}]");
-                        item.Value.sensor.ProcessMessage(topic.RemoveDeviceId(), message);
+                        Log.Trace($"Sending message for topic [{mqttMessage.topic}] to [{item.Value.SensorIdentifier}]");
+                        item.Value.sensor.ProcessMessage(mqttMessage);
                         return;
                     }
                 }
 
                 foreach (var item in sensorSingleLevelWildcardTopics)
                 {
-                    if (topic == item.Key || !topic.Substring(item.Key.Length + 1).Contains("/"))
+                    if (mqttMessage.topic == item.Key || !mqttMessage.topic.Substring(item.Key.Length + 1).Contains("/"))
                     {
-                        Log.Trace($"Sending message for topic [{topic}] to [{item.Value.SensorIdentifier}]");
-                        item.Value.sensor.ProcessMessage(topic.RemoveDeviceId(), message);
+                        Log.Trace($"Sending message for topic [{mqttMessage.topic}] to [{item.Value.SensorIdentifier}]");
+                        item.Value.sensor.ProcessMessage(mqttMessage);
                         return;
                     }
                 }

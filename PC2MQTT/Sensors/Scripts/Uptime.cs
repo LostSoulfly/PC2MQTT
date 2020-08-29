@@ -1,5 +1,6 @@
 ﻿using BadLogger;
 using ExtensionMethods;
+using PC2MQTT.MQTT;
 using System;
 using System.Runtime.InteropServices;
 using System.Timers;
@@ -58,18 +59,18 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
-        public void ProcessMessage(string topic, string message)
+        public void ProcessMessage(MqttMessage mqttMessage)
         {
-            Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{topic}]");
+            Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.topic}]");
 
-            if (topic == "/uptime/get")
+            if (mqttMessage.topic == "/uptime/get")
             {
                 Log.Info("Received uptime request");
                 this.sensorHost.Publish("/uptime/current", GetUpTime().TotalMilliseconds.ToString(), prependDeviceId: true, retain: false);
             }
-            else if (topic == "/uptime/current")
+            else if (mqttMessage.topic == "/uptime/current")
             {
-                Log.Info("Received uptime message: " + message + "ms");
+                Log.Info("Received uptime message: " + mqttMessage.message + "ms");
             }
         }
 
