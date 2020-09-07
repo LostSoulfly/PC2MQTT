@@ -119,49 +119,16 @@ namespace PC2MQTT.Sensors
                 this.SensorIdentifier = Path.GetFileName(filePath);
         }
 
-        public bool Publish(string topic, string message, bool prependDeviceId = true, bool retain = false)
+        public bool Publish(MqttMessage mqttMessage)
         {
             if (_client == null)
                 return false;
 
-            MqttMessage msg = new MqttMessage(topic, message, prependDeviceId, retain);
-            msg.messageType = MqttMessage.MessageType.MQTT_PUBLISH;
-            msg.message = message;
-            msg.topic = topic.ResultantTopic(prependDeviceId);
-            msg.prependDeviceId = prependDeviceId;
-            msg.retain = retain;
+            Log.Trace($"[{SensorIdentifier}] publishing to [{mqttMessage.GetRawTopic()}]: [{mqttMessage.message}]");
 
-            Log.Trace($"[{SensorIdentifier}] publishing to [{topic}]: [{message}]");
-
-            var success = _client.Publish(msg);
+            var success = _client.Publish(mqttMessage);
 
             if (success.messageId > 0) return true;
-
-            return false;
-        }
-
-        public bool Subscribe(string topic, bool prependDeviceId = true)
-        {
-            if (_client == null)
-                return false;
-
-            topic = topic.ResultantTopic(prependDeviceId);
-
-            MqttMessage msg = new MqttMessage();
-            msg.topic = topic;
-            msg.messageType = MqttMessage.MessageType.MQTT_SUBSCRIBE;
-            msg.prependDeviceId = prependDeviceId;
-
-
-            var success = _client.Subscribe(msg);
-            Log.Trace($"[{SensorIdentifier}] subscribing to [{topic}] ({success})");
-
-            if (success.messageId > 0)
-            {
-                _sensorManager.MapTopicToSensor(topic, this, prependDeviceId);
-
-                return true;
-            }
 
             return false;
         }
@@ -175,18 +142,35 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public bool Unsubscribe(MqttMessage mqttMessage, bool prependDeviceId = true)
+        public bool Unsubscribe(MqttMessage mqttMessage)
         {
             if (_client == null)
                 return false;
 
-            mqttMessage.topic = mqttMessage.topic.ResultantTopic(prependDeviceId);
             var success = _client.Unsubscribe(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.topic}] ({success})");
+            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
 
             if (success.messageId > 0)
             {
-                _sensorManager.UnmapTopicToSensor(mqttMessage.topic, this);
+                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool Subscribe(MqttMessage mqttMessage)
+        {
+            if (_client == null)
+                return false;
+
+            var success = _client.Subscribe(mqttMessage);
+            Log.Trace($"[{SensorIdentifier}] subscribing to [{mqttMessage.GetRawTopic()}]");
+
+            if (success.messageId > 0)
+            {
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+
                 return true;
             }
 

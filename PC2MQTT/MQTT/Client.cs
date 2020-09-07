@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
+using static PC2MQTT.MQTT.MqttMessage;
 
 namespace PC2MQTT.MQTT
 {
@@ -45,7 +46,11 @@ namespace PC2MQTT.MQTT
 
         public event MqttTopicUnsubscribed TopicUnsubscribed;
 
-        private ConcurrentQueue<MqttMessage> _messageQueue = new ConcurrentQueue<MqttMessage>();
+        //private ConcurrentQueue<MqttMessage> _messageQueue = new ConcurrentQueue<MqttMessage>();
+
+        //private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>();
+
+        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentBag<MqttMessage>(), 500);
 
         public bool IsConnected => client.IsConnected;
 
@@ -56,8 +61,6 @@ namespace PC2MQTT.MQTT
         private System.Timers.Timer _reconnectTimer;
 
         private bool _reconnectTimerStarted;
-
-        private AutoResetEvent _queueAutoResetEvent;
 
         private CancellationTokenSource _queueCancellationTokenSource;
 
@@ -91,7 +94,14 @@ namespace PC2MQTT.MQTT
 
         private void Client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
         {
-            throw new NotImplementedException();
+            var msg = MqttMessageBuilder
+                .NewMessage()
+                .AddTopic(e.Topic)
+                .SetMessage(Encoding.UTF8.GetString(e.Message))
+                .SetMessageType(MqttMessageType.MQTT_PUBLISH)
+                .Build();
+
+            MessageReceivedString?.Invoke(msg);
         }
 
         public void MqttConnect()
@@ -105,19 +115,29 @@ namespace PC2MQTT.MQTT
             if (client.IsConnected)
                 client.Disconnect();
 
-            System.Threading.Thread.Sleep(50);
+            System.Threading.Thread.Sleep(10);
+
+            var offlineWill = MqttMessageBuilder
+                .NewMessage()
+                .AddDeviceIdToTopic
+                .AddTopic(_mqttSettings.will.topic)
+                .Build();
 
             byte conn = client.Connect(_mqttSettings.deviceId, _mqttSettings.user, _mqttSettings.password, true, _mqttSettings.will.qosLevel,
-                _mqttSettings.will.enabled, _mqttSettings.will.topic.ResultantTopic(true), _mqttSettings.will.offlineMessage, false, _mqttSettings.will.keepAlive);
+                _mqttSettings.will.enabled, offlineWill.GetRawTopic(), _mqttSettings.will.offlineMessage, false, _mqttSettings.will.keepAlive);
 
             if (client.IsConnected)
             {
-                var msg = new MqttMessage();
-                msg.topic = _mqttSettings.will.topic;
-                msg.message = _mqttSettings.will.onlineMessage;
-                msg.messageType = MqttMessage.MessageType.MQTT_PUBLISH;
 
-                Publish(msg);
+                var onlineWill = MqttMessageBuilder
+                    .NewMessage()
+                    .AddDeviceIdToTopic
+                    .AddTopic(_mqttSettings.will.topic)
+                    .SetMessage(_mqttSettings.will.onlineMessage)
+                    .SetMessageType(MqttMessageType.MQTT_PUBLISH)
+                    .Build();
+
+                Publish(onlineWill);
                 ConnectionConnected?.Invoke();
             }
             else
@@ -150,9 +170,7 @@ namespace PC2MQTT.MQTT
                 }
             }
 
-
             _queueCancellationTokenSource = new CancellationTokenSource();
-            _queueAutoResetEvent = new AutoResetEvent(false);
 
             Task t;
             t = Task.Run(() => ProcessMessageQueue(), _queueCancellationTokenSource.Token);
@@ -162,90 +180,87 @@ namespace PC2MQTT.MQTT
         private void ProcessMessageQueue()
         {
             while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
+                if (_messageQueue.TryTake(out var msg, 100))
+                    ProcessMessage(msg);
+        }
+
+        private MqttMessage ProcessMessage(MqttMessage mqttMessage)
+        {
+            switch (mqttMessage.messageType)
             {
-
-                bool dequeue = _messageQueue.TryPeek(out var msg);
-
-                if (dequeue)
-                {
-                    switch (msg.messageType)
+                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
+                    if (this.Publish(mqttMessage).messageId > 0)
                     {
-                        case MqttMessage.MessageType.MQTT_PUBLISH:
-                            if (this.Publish(msg).messageId > 0)
-                            {
-                                _ = _messageQueue.TryDequeue(out var success);
-                                if (success.messageId > 0) MessagePublished?.Invoke(success);
-                            }
-                            break;
-
-                        case MqttMessage.MessageType.MQTT_SUBSCRIBE:
-                            if (this.Subscribe(msg).messageId > 0)
-                            {
-                                _ = _messageQueue.TryDequeue(out var success);
-
-                                if (success.messageId > 0) TopicSubscribed?.Invoke(success);
-                            }
-                            break;
-
-
-                        case MqttMessage.MessageType.MQTT_UNSUBSCRIBE:
-                            if (this.Unsubscribe(msg).messageId > 0)
-                            {
-                                _ = _messageQueue.TryDequeue(out var success);
-
-                                if (success.messageId > 0) TopicUnsubscribed?.Invoke(success);
-                            }
-                            break;
+                        _ = _messageQueue.TryTake(out var success);
+                        if (mqttMessage.messageId > 0) MessagePublished?.Invoke(mqttMessage);
+                        return mqttMessage;
                     }
+                    break;
 
-                }
+                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
+                    if (this.Subscribe(mqttMessage).messageId > 0)
+                    {
+                        _ = _messageQueue.TryTake(out var success);
 
-                _queueAutoResetEvent.WaitOne();
+                        if (mqttMessage.messageId > 0) TopicSubscribed?.Invoke(mqttMessage);
+                        return mqttMessage;
+                    }
+                    break;
+
+
+                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
+                    if (this.Unsubscribe(mqttMessage).messageId > 0)
+                    {
+                        _ = _messageQueue.TryTake(out var success);
+
+                        if (mqttMessage.messageId > 0) TopicUnsubscribed?.Invoke(mqttMessage);
+                        return mqttMessage;
+                    }
+                    break;
             }
+
+            return mqttMessage;
         }
 
         public void MqttDisconnect()
         {
             client.Disconnect();
-            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
+            ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 98);
             client = null;
         }
 
-        public MqttMessage Publish(MqttMessage message)
+        public MqttMessage Publish(MqttMessage mqttMessage)
         {
             // todo: Check for connectivity? Or QoS level if message will be retained
-            message.messageId = client.Publish(message.topic.ResultantTopic(message.prependDeviceId),
-                Encoding.UTF8.GetBytes(message.message),
+            mqttMessage.messageId = client.Publish(mqttMessage.GetRawTopic(),
+                Encoding.UTF8.GetBytes(mqttMessage.message),
                 _mqttSettings.publishQosLevel,
-                message.retain);
+                mqttMessage.retain);
 
-            if (message.messageId > 0) MessagePublished?.Invoke(message);
+            if (mqttMessage.messageId > 0) MessagePublished?.Invoke(mqttMessage);
 
-            return message;
+            return mqttMessage;
         }
 
-        public MqttMessage Subscribe(MqttMessage message)
+        public MqttMessage Subscribe(MqttMessage mqttMessage)
         {
-            message.messageId = client.Subscribe(new string[] { message.topic.ResultantTopic(message.prependDeviceId) }, new byte[] { _mqttSettings.subscribeQosLevel });
+            mqttMessage.messageId = client.Subscribe(new string[] { mqttMessage.GetRawTopic() }, new byte[] { _mqttSettings.subscribeQosLevel });
 
-            if (message.messageId > 0) TopicSubscribed?.Invoke(message);
+            if (mqttMessage.messageId > 0) TopicSubscribed?.Invoke(mqttMessage);
 
-            return message;
+            return mqttMessage;
         }
 
-        public MqttMessage Unsubscribe(MqttMessage message)
+        public MqttMessage Unsubscribe(MqttMessage mqttMessage)
         {
-            message.messageId = client.Unsubscribe(new string[] { message.topic.ResultantTopic(message.prependDeviceId) });
+            mqttMessage.messageId = client.Unsubscribe(new string[] { mqttMessage.GetRawTopic() });
 
-            if (message.messageId > 0) TopicUnsubscribed?.Invoke(message);
+            if (mqttMessage.messageId > 0) TopicUnsubscribed?.Invoke(mqttMessage);
 
-            return message;
+            return mqttMessage;
         }
 
-        private void Client_ConnectionClosed(object sender, EventArgs e)
-        {
-            ConnectionClosed?.Invoke("Connection closed", 99);
-        }
+        private void Client_ConnectionClosed(object sender, EventArgs e) => ConnectionClosed?.Invoke("Connection closed", 99);
 
         /*
         private void Client_MqttMsgPublishReceived(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishEventArgs e)
@@ -255,10 +270,12 @@ namespace PC2MQTT.MQTT
         }
         */
 
-        public void QueueMessage(MqttMessage message)
+        public bool QueueMessage(MqttMessage message)
         {
-            _messageQueue.Enqueue(message);
+            return _messageQueue.TryAdd(message, 1000);
         }
+
+        public MqttMessage SendMessage(MqttMessage message) => ProcessMessage(message);
     }
 
     public class MqttSettings

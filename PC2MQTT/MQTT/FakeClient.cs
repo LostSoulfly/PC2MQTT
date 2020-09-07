@@ -74,16 +74,57 @@ namespace PC2MQTT.MQTT
         }
 
 
-        public void QueueMessage(MqttMessage message)
+        public bool QueueMessage(MqttMessage message)
         {
-            throw new NotImplementedException();
+            ProcessMessage(message);
+            return true;
         }
+
+        private MqttMessage ProcessMessage(MqttMessage msg)
+        {
+            switch (msg.messageType)
+            {
+                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
+                    if (this.Publish(msg).messageId > 0)
+                    {
+                        if (msg.messageId > 0)
+                            MessagePublished?.Invoke(msg);
+
+                        return msg;
+                    }
+                    break;
+
+                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
+                    if (this.Subscribe(msg).messageId > 0)
+                    {
+                        if (msg.messageId > 0)
+                            TopicSubscribed?.Invoke(msg);
+
+                        return msg;
+                    }
+                    break;
+
+
+                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
+                    if (this.Unsubscribe(msg).messageId > 0)
+                    {
+                        if (msg.messageId > 0)
+                            TopicUnsubscribed?.Invoke(msg);
+
+                        return msg;
+                    }
+                    break;
+            }
+
+            return msg;
+        }
+
 
         public MqttMessage Publish(MqttMessage message)
         {
             var success = SometimesFalse();
 
-            if (!success) Log.Trace($"Randomly failing Publish call for {message.topic}: {message.message}");
+            if (!success) Log.Trace($"Randomly failing Publish call for {message.GetRawTopic()}: {message.message}");
 
             if (success)
             {
@@ -96,6 +137,7 @@ namespace PC2MQTT.MQTT
                 Task.Run(() =>
                 {
                     System.Threading.Thread.Sleep(GetRandom());
+                    //message.prependDeviceId = false;
                     MessageReceivedString?.Invoke(message);
                 });
             }
@@ -108,11 +150,12 @@ namespace PC2MQTT.MQTT
             System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Subscribe call for {message.topic}");
+            if (!success) Log.Trace($"Randomly failing Subscribe call for {message.GetRawTopic()}");
 
             if (success)
             {
                 message.messageId = _messageId++;
+                //message.prependDeviceId = false;
                 TopicSubscribed?.Invoke(message);
             }
 
@@ -124,16 +167,22 @@ namespace PC2MQTT.MQTT
             System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Unubscribe call for {message.topic}");
+            if (!success) Log.Trace($"Randomly failing Unubscribe call for {message.GetRawTopic()}");
 
             if (success)
             {
                 message.messageId = _messageId++;
+                //message.prependDeviceId = false;
                 TopicUnsubscribed?.Invoke(message);
             }
 
 
             return message;
+        }
+
+        public MqttMessage SendMessage(MqttMessage message)
+        {
+            return ProcessMessage(message);
         }
     }
 }

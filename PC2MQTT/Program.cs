@@ -78,7 +78,7 @@ namespace PC2MQTT
 
         private static void Client_MessageReceivedString(MqttMessage mqttMessage)
         {
-            Log.Trace($"Message received for [{mqttMessage.topic}]: {mqttMessage.message}");
+            Log.Trace($"Message received for [{mqttMessage.GetTopicWithoutDeviceId()}]: {mqttMessage.message}");
             sensorManager.ProcessMessage(mqttMessage);
         }
 
@@ -130,8 +130,7 @@ namespace PC2MQTT
             Logging.InitializeLogging(settings);
             Log = LogManager.GetCurrentClassLogger();
 
-            Task t;
-            t = Task.Run(() => InitializeMqtt());
+            InitializeMqtt();
 
             InitializeSensors(settings.config.useOnlyBuiltInScripts);
             sensorManager.StartSensors();

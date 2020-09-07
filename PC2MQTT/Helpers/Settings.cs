@@ -40,6 +40,7 @@ namespace PC2MQTT.Helpers
                 if (loaded != null)
                 {
                     config = loaded;
+                    config.mqttSettings.deviceId = config.mqttSettings.deviceId.ToLower();
                     return true;
                 }
             }

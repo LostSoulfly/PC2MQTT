@@ -24,7 +24,9 @@
 
         public void MqttDisconnect();
 
-        public void QueueMessage(MqttMessage message);
+        public bool QueueMessage(MqttMessage message);
+
+        public MqttMessage SendMessage(MqttMessage message);
 
         public MqttMessage Publish(MqttMessage message);
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PC2MQTT.MQTT;
+using System;
 using System.Diagnostics;
 
 namespace ExtensionMethods
@@ -30,20 +31,27 @@ namespace ExtensionMethods
 
         public static string RemoveDeviceId(this string topic)
         {
-            if (topic.Substring(0, 1) == "/") topic = topic[1..];
+            topic.RemovePreSlash();
 
             if (topic.Length > deviceId.Length)
             {
                 if (topic[0..deviceId.Length] == deviceId)
                     topic = topic[deviceId.Length..];
+
             }
 
             return topic;
         }
 
-        public static string ResultantTopic(this string topic, bool prependDeviceId = true, bool removeWildcards = false)
+        public static string RemovePreSlash(this string topic)
         {
             if (topic.Substring(0, 1) == "/") topic = topic[1..];
+            return topic;
+        }
+
+        public static string ResultantTopic2(this string topic, bool prependDeviceId = true, bool removeWildcards = false)
+        {
+            topic.RemovePreSlash();
 
             if (prependDeviceId)
             {
@@ -56,7 +64,7 @@ namespace ExtensionMethods
                 {
                     topic = $"{deviceId}/{topic}";
                 }
-            }
+            } else { topic = topic.RemoveDeviceId(); }
 
             if (removeWildcards)
                 topic = topic.Replace("/#", "").Replace("/+", "");
@@ -99,5 +107,6 @@ namespace ExtensionMethods
             process.WaitForExit();
             return result;
         }
+
     }
 }
