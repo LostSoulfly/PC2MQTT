@@ -1,7 +1,9 @@
 ﻿using BadLogger;
 using ExtensionMethods;
 using System;
+using System.Collections.Concurrent;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PC2MQTT.MQTT
@@ -30,6 +32,10 @@ namespace PC2MQTT.MQTT
         private ushort _messageId = 0;
         private MqttSettings _mqttSettings;
 
+        private CancellationTokenSource _queueCancellationTokenSource;
+
+        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
+
         public FakeClient(MqttSettings mqttSettings)
         {
             this._mqttSettings = mqttSettings;
@@ -57,8 +63,25 @@ namespace PC2MQTT.MQTT
             ConnectionConnected?.Invoke();
 
             _messageId++;
+            _queueCancellationTokenSource = new CancellationTokenSource();
+
+            Task t;
+            t = Task.Run(() => ProcessMessageQueue(), _queueCancellationTokenSource.Token);
+
         }
 
+        private void ProcessMessageQueue()
+        {
+            Log.Trace("Starting Message Queue Processing..");
+            while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
+            {
+                var msg = _messageQueue.Take();
+
+                Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                ProcessMessage(msg);
+                Thread.Sleep(10);
+            }
+        }
         public void MqttDisconnect()
         {
             System.Threading.Thread.Sleep(GetRandom());
@@ -76,7 +99,8 @@ namespace PC2MQTT.MQTT
 
         public bool QueueMessage(MqttMessage message)
         {
-            ProcessMessage(message);
+            _messageQueue.Add(message);
+
             return true;
         }
 
@@ -85,34 +109,18 @@ namespace PC2MQTT.MQTT
             switch (msg.messageType)
             {
                 case MqttMessage.MqttMessageType.MQTT_PUBLISH:
-                    if (this.Publish(msg).messageId > 0)
-                    {
-                        if (msg.messageId > 0)
-                            MessagePublished?.Invoke(msg);
-
-                        return msg;
-                    }
+                    this.Publish(msg);
+                        //MessagePublished?.Invoke(msg);
                     break;
 
                 case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
-                    if (this.Subscribe(msg).messageId > 0)
-                    {
-                        if (msg.messageId > 0)
-                            TopicSubscribed?.Invoke(msg);
-
-                        return msg;
-                    }
+                    this.Subscribe(msg);
+                        //TopicSubscribed?.Invoke(msg);
                     break;
 
-
                 case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
-                    if (this.Unsubscribe(msg).messageId > 0)
-                    {
-                        if (msg.messageId > 0)
-                            TopicUnsubscribed?.Invoke(msg);
-
-                        return msg;
-                    }
+                    this.Unsubscribe(msg);
+                        //TopicUnsubscribed?.Invoke(msg);
                     break;
             }
 

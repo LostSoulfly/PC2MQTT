@@ -71,11 +71,14 @@ namespace PC2MQTT.Sensors
         // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
         public void ProcessMessage(MqttMessage mqttMessage)
         {
-            Log.Info($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
+            Log.Info($"[ProcessMessage] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
+
+            var topic = mqttMessage.GetTopicWithoutDeviceId();
 
             // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
             if (mqttMessage.GetTopicWithoutDeviceId() == "example3/unload_example_script" && mqttMessage.message == "unload")
             {
+                return;
                 Log.Info("Disposing of myself in 5 seconds..");
                 System.Threading.Thread.Sleep(5000);
                 sensorHost.Dispose();
@@ -90,18 +93,18 @@ namespace PC2MQTT.Sensors
             // Below are several different ways to create an MqttMessage object. Pick whichever one works best for you!
 
             // Subscribe to JUST /example/status topic
-            if (!sensorHost.Subscribe(new MqttMessageBuilder().AddDeviceIdToTopic.AddTopic("/example1/status").Build()))
-                Log.Info("Failed to subscribe to /example/status");
+            if (!sensorHost.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/example1/status").Build()))
+                Log.Info("Failed to subscribe to /example1/status");
 
             // Since this is a direct MQTT message to /example/status and we're subscribed, we should receive it
             if (!sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceIdToTopic.AddTopic("/example1/status").SetMessage("1").DoNotRetain.Build()))
-                Log.Info("Failed to publish to /example/status");
+                Log.Info("Failed to publish to /example1/status");
 
             // subscribe to all levels above and including /example/
             // for example, /example/hello/world/test would trigger.
             var msg = MqttMessageBuilder.NewMessage().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/example2/").AddMultiLevelWildcard().DoNotRetain.Build();
             if (!sensorHost.Subscribe(msg))
-                Log.Info("Failed to subscribe to /example/#");
+                Log.Info("Failed to subscribe to /example2/#");
 
 
             var msg2 = MqttMessageBuilder
@@ -117,10 +120,18 @@ namespace PC2MQTT.Sensors
             // We should receive both of these because /# is a multi-level wildcard
             sensorHost.Publish(msg2);
 
-            //re-use old msg2
-            msg2.message = "3";
-            msg2.SetTopic("").AddDeviceId.AddTopic("/example2/test/should_also_receive/this_message");
-            sensorHost.Publish(msg2);
+            var msg3 = MqttMessageBuilder
+                .NewMessage()
+                .PublishMessage
+                .DoNotRetain
+                .AddDeviceId
+                .AddTopic("/example2/test//")
+                .AddTopic("should_also_receive")
+                .AddTopic("this_message")
+                .SetMessage("3")
+                .Build();
+
+            sensorHost.Publish(msg3);
 
             // Subscribe to all /example2/ topics one level up.
             // For example, /example2/hello would trigger
@@ -132,6 +143,7 @@ namespace PC2MQTT.Sensors
 
             sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceId.AddTopic("/example3/test").SetMessage("4").Build());
 
+            
             sensorHost.Publish(MqttMessageBuilder
                 .NewMessage()
                 .PublishMessage
@@ -140,7 +152,7 @@ namespace PC2MQTT.Sensors
                 .SetMessage("5")
                 .DoNotRetain
                 .Build());
-
+            
 
             Log.Info("In 10 seconds I will send an unload message to /example2/unload_example_script");
 
@@ -153,12 +165,15 @@ namespace PC2MQTT.Sensors
             {
                 Log.Info("Sending unload MQTT message to myself");
 
-                if (!sensorHost.Publish(new MqttMessage().PublishMessage.AddDeviceId.SetTopic("/example3/unload_example_script").SetMessage("unload")))
+                if (!sensorHost.Publish(new MqttMessage().PublishMessage.AddDeviceId.AddTopic("/example3/unload_example_script").SetMessage("unload")))
                     Log.Info("Failed to publish to /example3/unload_example_script");
             };
             // Start the timer
             unloadTimer.Start();
 
+            var dc = new MqttMessageBuilder().SubscribeMessage.AddDeviceId.AddMultiLevelWildcard().AddSingleLevelWildcard.Build();
+
+            sensorHost.Subscribe(dc);
 
             // At any time you can unsubscribe from all topics but it's not necessary here
             // sensorHost.UnsubscribeAllTopics();

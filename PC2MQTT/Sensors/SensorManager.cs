@@ -39,6 +39,26 @@ namespace PC2MQTT.Sensors
             sensorSingleLevelWildcardTopics = new ConcurrentDictionary<string, SensorHost>();
         }
 
+        public void ReMapTopics()
+        {
+
+            foreach (var item in sensorTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.QueueMessage.AddTopic(item.Key).Build());
+            }
+
+            foreach (var item in sensorMultiLevelWildcardTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
+            }
+
+            foreach (var item in sensorSingleLevelWildcardTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
+            }
+
+        }
+
         public void Dispose()
         {
             Log.Info("Disposing of SensorManager..");
@@ -119,13 +139,22 @@ namespace PC2MQTT.Sensors
             Log.Debug($"Mapping topic [{mqttMessage.GetRawTopic()}] for [{sensorHost.SensorIdentifier}]");
 
             bool result;
+            try
+            {
+                if (!mqttMessage.GetRawTopic().ValidateTopic())
+                    return false;
+            } catch (Exception ex)
+            {
+                Log.Debug($"Topic {mqttMessage.GetRawTopic()} validated false: {ex.Message}");
+                return false;
+            }
 
-            if (mqttMessage.GetRawTopic().Contains("/#")) // multi-level wildcard topic
+            if (mqttMessage.GetRawTopic().Contains("#")) // multi-level wildcard topic
             {
                 result = sensorMultiLevelWildcardTopics.TryAdd(mqttMessage.GetRawTopic(), sensorHost);
 
             }
-            else if (mqttMessage.GetRawTopic().Contains("/+"))// single level wildcard topic
+            else if (mqttMessage.GetRawTopic().Contains("+"))// single level wildcard topic
             {
                 result = sensorSingleLevelWildcardTopics.TryAdd(mqttMessage.GetRawTopic(), sensorHost);
             }
@@ -143,7 +172,7 @@ namespace PC2MQTT.Sensors
 
             if (sensorTopics.TryGetValue(mqttMessage.GetRawTopic(), out sensorHost))
             {
-                Log.Trace($"Sending message for topic [{mqttMessage.GetRawTopic()}] to [{sensorHost.SensorIdentifier}]");
+                Log.Trace($"[NW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{sensorHost.SensorIdentifier}]");
                 sensorHost.sensor.ProcessMessage(mqttMessage);
 
                 // Found a basic topic, no need to search the wildcards
@@ -152,22 +181,61 @@ namespace PC2MQTT.Sensors
 
             foreach (var item in sensorMultiLevelWildcardTopics)
             {
-                if (mqttMessage.GetRawTopic() == item.Key || mqttMessage.GetRawTopic().Contains(item.Key + "/"))
+                var wildcardTopic = item.Key.Split("/");
+                var messageTopic = mqttMessage.GetRawTopic().Split("/");
+
+                if (messageTopic.Count() < wildcardTopic.Count())
+                    continue;
+
+                bool wildcardFound = false;
+                for (int i = 0; i < wildcardTopic.Count(); i++)
                 {
-                    Log.Trace($"Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
-                    item.Value.sensor.ProcessMessage(mqttMessage);
-                    return;
+                    
+                    if (!wildcardFound && i < wildcardTopic.Count())
+                    {
+
+                        if (wildcardTopic[i] == "#")
+                            wildcardFound = true;
+
+                        if ((messageTopic[i] != wildcardTopic[i]) && !wildcardFound)
+                            break;
+                    }
+
+                    if (wildcardFound)
+                    {
+                        Log.Trace($"[MW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
+                        item.Value.sensor.ProcessMessage(mqttMessage);
+                        return;
+                    }
+
                 }
+
             }
+
 
             foreach (var item in sensorSingleLevelWildcardTopics)
             {
-                if (mqttMessage.GetRawTopic() == item.Key || !mqttMessage.GetRawTopic().Substring(item.Key.Length + 1).Contains("/"))
+                var wildcardTopic = item.Key.Split("/");
+                var messageTopic = mqttMessage.GetRawTopic().Split("/");
+
+                if (messageTopic.Count() != wildcardTopic.Count())
+                    continue;
+
+                for (int i = 0; i < messageTopic.Count(); i++)
                 {
-                    Log.Trace($"Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
-                    item.Value.sensor.ProcessMessage(mqttMessage);
-                    return;
+
+                    if ((messageTopic[i] != wildcardTopic[i]) && (wildcardTopic[i] != "+"))
+                        break;
+
+                    if (i == wildcardTopic.Count() - 1)
+                    {
+                        Log.Trace($"[SW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
+                        item.Value.sensor.ProcessMessage(mqttMessage);
+                        return;
+                    }
+
                 }
+
             }
         }
 
@@ -200,12 +268,12 @@ namespace PC2MQTT.Sensors
                     var mMulti = MqttMessageBuilder
                         .NewMessage()
                         .AddTopic(item.Key)
-                        .AddMultiLevelWildcard()
                         .UnsubscribeMessage
                         .Build();
 
                     Log.Debug($"Unsubscribing from [{item.Key}] for [{item.Value.sensor.GetSensorIdentifier()}]");
                     _client.Unsubscribe(mMulti);
+
                     sensorMultiLevelWildcardTopics.Remove(item.Key, out var removed);
                 }
             }
@@ -218,7 +286,6 @@ namespace PC2MQTT.Sensors
                     var mSingle = MqttMessageBuilder
                         .NewMessage()
                         .AddTopic(item.Key)
-                        .AddSingleLevelWildcard
                         .UnsubscribeMessage
                         .Build();
 

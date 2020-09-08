@@ -16,6 +16,7 @@ namespace PC2MQTT
         private static BadLogger.BadLogger Log;
         private static SensorManager sensorManager;
         private static Settings settings = new Settings();
+        private static bool disconnectedUnexpectedly = false;
 
         private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
@@ -23,11 +24,18 @@ namespace PC2MQTT
             //todo: Unmap all topics in sensormanager?
             // Notify sensors the server connection was closed?
             // auto-resub to topics on reconnection?
+            disconnectedUnexpectedly = true;
         }
 
         private static void Client_ConnectionConnected()
         {
             Log.Info($"Connected to MQTT server");
+
+            if (disconnectedUnexpectedly && settings.config.resubscribeOnReconnect)
+            {
+                sensorManager.ReMapTopics();
+                disconnectedUnexpectedly = false;
+            }
         }
 
 
@@ -63,16 +71,20 @@ namespace PC2MQTT
 
         private static void Client_MessagePublished(MqttMessage mqttMessage)
         {
+            Log.Trace($"Message published for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 
         private static void Client_TopicSubscribed(MqttMessage mqttMessage)
         {
+            Log.Trace($"Topic subscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 
         private static void Client_TopicUnsubscribed(MqttMessage mqttMessage)
         {
+
+            Log.Trace($"Topic Unsubscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 

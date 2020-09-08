@@ -1,6 +1,7 @@
 ﻿using PC2MQTT.MQTT;
 using System;
 using System.Diagnostics;
+using System.Linq;
 
 namespace ExtensionMethods
 {
@@ -31,7 +32,7 @@ namespace ExtensionMethods
 
         public static string RemoveDeviceId(this string topic)
         {
-            topic.RemovePreSlash();
+            topic = topic.RemovePreSlash();
 
             if (topic.Length > deviceId.Length)
             {
@@ -40,35 +41,50 @@ namespace ExtensionMethods
 
             }
 
+            topic = topic.RemovePreSlash();
+
             return topic;
+        }
+
+        public static bool ValidateTopic(this string topic)
+        {
+
+            if (topic.Length == 0)
+                throw new System.Exception("Topic length is zero");
+
+            if (topic.Last() == '/')
+                throw new System.Exception("Topic has a trailing slash");
+
+            var t = topic.Split("/");
+
+            for (int i = 0; i < t.Length; i++)
+            {
+
+                if (t.Contains("#") && t.Contains("+"))
+                    throw new System.Exception($"Topic contains multiple different wildcards");
+
+                if (t[i].Length == 0)
+                    throw new System.Exception($"Topic section {i} length is zero");
+
+                if (t[i].Contains("+") && t[i].Contains("#"))
+                    throw new System.Exception($"Topic section {i} contains multiple wildcards");
+
+                if (t[i].Contains("+") && t[i].Length > 1)
+                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
+
+                if (t[i].Contains("#") && t[i].Length > 1)
+                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
+
+                if (t[i] == "#" && i != t.Length -1)
+                    throw new System.Exception($"Topic section {i} should be the last topic section in a # wildcard topic");
+            }
+
+            return true;
         }
 
         public static string RemovePreSlash(this string topic)
         {
             if (topic.Substring(0, 1) == "/") topic = topic[1..];
-            return topic;
-        }
-
-        public static string ResultantTopic2(this string topic, bool prependDeviceId = true, bool removeWildcards = false)
-        {
-            topic.RemovePreSlash();
-
-            if (prependDeviceId)
-            {
-                if (topic.Length > deviceId.Length)
-                {
-                    if (topic[0..deviceId.Length] != deviceId)
-                        topic = $"{deviceId}/{topic}";
-                }
-                else
-                {
-                    topic = $"{deviceId}/{topic}";
-                }
-            } else { topic = topic.RemoveDeviceId(); }
-
-            if (removeWildcards)
-                topic = topic.Replace("/#", "").Replace("/+", "");
-
             return topic;
         }
 

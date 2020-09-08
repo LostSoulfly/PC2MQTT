@@ -86,6 +86,24 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        public MqttMessageBuilder SendImmediately
+        {
+            get
+            {
+                _mqttMessage.sendImmediately = true;
+                return this;
+            }
+        }
+
+        public MqttMessageBuilder QueueMessage
+        {
+            get
+            {
+                _mqttMessage.sendImmediately = false;
+                return this;
+            }
+        }
+
         public MqttMessageBuilder AddSingleLevelWildcard
         {
             get
@@ -130,6 +148,7 @@ namespace PC2MQTT.MQTT
             _mqttMessage.messageType = messageType;
             return this;
         }
+
 
 
     }

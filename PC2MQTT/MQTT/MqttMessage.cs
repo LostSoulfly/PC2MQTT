@@ -11,11 +11,12 @@ namespace PC2MQTT.MQTT
     {
         private List<string> topicList;
         public bool retain = false;
-        public MqttMessageType messageType = MqttMessageType.MQTT_PUBLISH;
+        public MqttMessageType messageType = MqttMessageType.MQTT_NONE;
         public ushort messageId = 0;
         public string message = "";
         public string deviceId = ExtensionMethods.Extensions.deviceId;
         private string _rawTopicCache = "";
+        public bool sendImmediately = false;
 
         public MqttMessage()
         {
@@ -48,7 +49,7 @@ namespace PC2MQTT.MQTT
             return this;
         }
 
-        [DebuggerHidden]
+
         public MqttMessage SubscribeMessage
         {
             get
@@ -58,7 +59,6 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        [DebuggerHidden]
         public MqttMessage PublishMessage
         {
             get
@@ -68,7 +68,6 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        [DebuggerHidden]
         public MqttMessage UnsubscribeMessage
         {
             get
@@ -78,12 +77,30 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        [DebuggerHidden]
         public MqttMessage ReceivedMessage
         {
             get
             {
                 this.messageType = MqttMessageType.MQTT_RECEIVED;
+                return this;
+            }
+        }
+
+
+        public MqttMessage SendImmediately
+        {
+            get
+            {
+                this.sendImmediately = true;
+                return this;
+            }
+        }
+
+        public MqttMessage QueueMessage
+        {
+            get
+            {
+                this.sendImmediately = false;
                 return this;
             }
         }
@@ -172,7 +189,6 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        [DebuggerHidden]
         public MqttMessage AddSingleLevelWildcard
         {
             get
@@ -183,7 +199,6 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        [DebuggerHidden]
         public MqttMessage AddMultiLevelWildcard
         {
             get

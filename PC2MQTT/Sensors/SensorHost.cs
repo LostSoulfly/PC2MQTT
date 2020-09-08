@@ -124,6 +124,12 @@ namespace PC2MQTT.Sensors
             if (_client == null)
                 return false;
 
+            if (!mqttMessage.sendImmediately)
+            {
+                _client.QueueMessage(mqttMessage.PublishMessage);
+                return true;
+            }
+
             Log.Trace($"[{SensorIdentifier}] publishing to [{mqttMessage.GetRawTopic()}]: [{mqttMessage.message}]");
 
             var success = _client.Publish(mqttMessage);
@@ -147,6 +153,13 @@ namespace PC2MQTT.Sensors
             if (_client == null)
                 return false;
 
+            if (!mqttMessage.sendImmediately)
+            {
+                _client.QueueMessage(mqttMessage.UnsubscribeMessage);
+                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
+                return true;
+            }
+
             var success = _client.Unsubscribe(mqttMessage);
             Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
 
@@ -164,8 +177,43 @@ namespace PC2MQTT.Sensors
             if (_client == null)
                 return false;
 
+            if (!mqttMessage.sendImmediately)
+            {
+                _client.QueueMessage(mqttMessage.SubscribeMessage);
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+                return true;
+            }
+
             var success = _client.Subscribe(mqttMessage);
             Log.Trace($"[{SensorIdentifier}] subscribing to [{mqttMessage.GetRawTopic()}]");
+
+            if (success.messageId > 0)
+            {
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool SendMqttMessage(MqttMessage mqttMessage)
+        {
+            if (_client == null)
+                return false;
+
+            if (mqttMessage.messageType == MqttMessage.MqttMessageType.MQTT_NONE)
+                return false;
+
+            if (!mqttMessage.sendImmediately)
+            {
+                _client.QueueMessage(mqttMessage);
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+                return true;
+            }
+
+            var success = _client.SendMessage(mqttMessage);
+            Log.Trace($"[{SensorIdentifier}] sending message for [{mqttMessage.GetRawTopic()}]");
 
             if (success.messageId > 0)
             {

@@ -1,4 +1,5 @@
-﻿using ExtensionMethods;
+﻿using BadLogger;
+using ExtensionMethods;
 using PC2MQTT.Helpers;
 using System;
 using System.Collections.Concurrent;
@@ -50,7 +51,7 @@ namespace PC2MQTT.MQTT
 
         //private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>();
 
-        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentBag<MqttMessage>(), 500);
+        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
 
         public bool IsConnected => client.IsConnected;
 
@@ -66,10 +67,14 @@ namespace PC2MQTT.MQTT
 
         private MqttClient client;
 
+        private BadLogger.BadLogger Log;
+
         public Client(MqttSettings mqttSettings, bool autoReconnect = true)
         {
             this._mqttSettings = mqttSettings;
             this._autoReconnect = autoReconnect;
+
+            Log = LogManager.GetCurrentClassLogger();
 
             client = new MqttClient(_mqttSettings.broker, _mqttSettings.port, false, null, null, MqttSslProtocols.None);
 
@@ -86,6 +91,7 @@ namespace PC2MQTT.MQTT
                     if (!client.IsConnected)
                     {
                         ConnectionReconnecting?.Invoke();
+                        _queueCancellationTokenSource.Cancel();
                         MqttConnect();
                     }
                 };
@@ -123,7 +129,7 @@ namespace PC2MQTT.MQTT
                 .AddTopic(_mqttSettings.will.topic)
                 .Build();
 
-            byte conn = client.Connect(_mqttSettings.deviceId, _mqttSettings.user, _mqttSettings.password, true, _mqttSettings.will.qosLevel,
+            byte conn = client.Connect(_mqttSettings.deviceId, _mqttSettings.user, _mqttSettings.password, true, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE,
                 _mqttSettings.will.enabled, offlineWill.GetRawTopic(), _mqttSettings.will.offlineMessage, false, _mqttSettings.will.keepAlive);
 
             if (client.IsConnected)
@@ -179,9 +185,21 @@ namespace PC2MQTT.MQTT
 
         private void ProcessMessageQueue()
         {
+            Log.Trace("Starting Message Queue Processing..");
             while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
-                if (_messageQueue.TryTake(out var msg, 100))
+            {
+                if (client.IsConnected)
+                {
+                    var msg = _messageQueue.Take();
+
+                    Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
                     ProcessMessage(msg);
+                }
+                else
+                {
+                    Thread.Sleep(1);
+                }
+            }
         }
 
         private MqttMessage ProcessMessage(MqttMessage mqttMessage)
@@ -189,33 +207,15 @@ namespace PC2MQTT.MQTT
             switch (mqttMessage.messageType)
             {
                 case MqttMessage.MqttMessageType.MQTT_PUBLISH:
-                    if (this.Publish(mqttMessage).messageId > 0)
-                    {
-                        _ = _messageQueue.TryTake(out var success);
-                        if (mqttMessage.messageId > 0) MessagePublished?.Invoke(mqttMessage);
-                        return mqttMessage;
-                    }
+                    this.Publish(mqttMessage);
                     break;
 
                 case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
-                    if (this.Subscribe(mqttMessage).messageId > 0)
-                    {
-                        _ = _messageQueue.TryTake(out var success);
-
-                        if (mqttMessage.messageId > 0) TopicSubscribed?.Invoke(mqttMessage);
-                        return mqttMessage;
-                    }
+                    this.Subscribe(mqttMessage);
                     break;
 
-
                 case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
-                    if (this.Unsubscribe(mqttMessage).messageId > 0)
-                    {
-                        _ = _messageQueue.TryTake(out var success);
-
-                        if (mqttMessage.messageId > 0) TopicUnsubscribed?.Invoke(mqttMessage);
-                        return mqttMessage;
-                    }
+                    this.Unsubscribe(mqttMessage);
                     break;
             }
 
@@ -234,7 +234,7 @@ namespace PC2MQTT.MQTT
             // todo: Check for connectivity? Or QoS level if message will be retained
             mqttMessage.messageId = client.Publish(mqttMessage.GetRawTopic(),
                 Encoding.UTF8.GetBytes(mqttMessage.message),
-                _mqttSettings.publishQosLevel,
+                MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE,
                 mqttMessage.retain);
 
             if (mqttMessage.messageId > 0) MessagePublished?.Invoke(mqttMessage);
@@ -244,7 +244,7 @@ namespace PC2MQTT.MQTT
 
         public MqttMessage Subscribe(MqttMessage mqttMessage)
         {
-            mqttMessage.messageId = client.Subscribe(new string[] { mqttMessage.GetRawTopic() }, new byte[] { _mqttSettings.subscribeQosLevel });
+            mqttMessage.messageId = client.Subscribe(new string[] { mqttMessage.GetRawTopic() }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
 
             if (mqttMessage.messageId > 0) TopicSubscribed?.Invoke(mqttMessage);
 
@@ -260,7 +260,7 @@ namespace PC2MQTT.MQTT
             return mqttMessage;
         }
 
-        private void Client_ConnectionClosed(object sender, EventArgs e) => ConnectionClosed?.Invoke("Connection closed", 99);
+        private void Client_ConnectionClosed(object sender, EventArgs e) => ConnectionClosed?.Invoke($"Connection closed:", 99);
 
         /*
         private void Client_MqttMsgPublishReceived(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishEventArgs e)
@@ -272,7 +272,9 @@ namespace PC2MQTT.MQTT
 
         public bool QueueMessage(MqttMessage message)
         {
-            return _messageQueue.TryAdd(message, 1000);
+            _messageQueue.Add(message);
+
+            return true;
         }
 
         public MqttMessage SendMessage(MqttMessage message) => ProcessMessage(message);
@@ -284,9 +286,9 @@ namespace PC2MQTT.MQTT
         public string deviceId = "PC2MQTT";
         public string password = "";
         public int port = 1883;
-        public byte publishQosLevel = 2;
+        public byte publishQosLevel = MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
         public int reconnectInterval = 10000;
-        public byte subscribeQosLevel = 2;
+        public byte subscribeQosLevel = MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
         public bool useFakeMqttDelays = true;
         public bool useFakeMqttFailures = false;
         public bool useFakeMqttServer = false;
@@ -300,7 +302,7 @@ namespace PC2MQTT.MQTT
         public ushort keepAlive = 60000;
         public string offlineMessage = "Offline";
         public string onlineMessage = "Online";
-        public byte qosLevel = 2;
+        public byte qosLevel = MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE;
         public bool retain = true;
         public string topic = "/status";
     }

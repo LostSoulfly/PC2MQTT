@@ -17,6 +17,7 @@ namespace PC2MQTT.Helpers
         public bool minimizeAtLaunch = true;
         public MqttSettings mqttSettings = new MqttSettings();
         public bool useOnlyBuiltInScripts = true;
+        public bool resubscribeOnReconnect = true;
         //public int screenshotServerPort = 8081;
         //public int webcamServerPort = 8080;
         //public webcamToStream;
