@@ -74,7 +74,7 @@ namespace PC2MQTT.MQTT
             this._mqttSettings = mqttSettings;
             this._autoReconnect = autoReconnect;
 
-            Log = LogManager.GetCurrentClassLogger("PC2MQTT.", "");
+            Log = LogManager.GetCurrentClassLogger("MqttClient");
 
             client = new MqttClient(_mqttSettings.broker, _mqttSettings.port, false, null, null, MqttSslProtocols.None);
 
