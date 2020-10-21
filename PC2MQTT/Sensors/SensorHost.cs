@@ -179,14 +179,9 @@ namespace PC2MQTT.Sensors
 
             if (!mqttMessage.sendImmediately)
             {
-                if (_sensorManager.MapTopicToSensor(mqttMessage, this))
-                {
-                    _client.QueueMessage(mqttMessage.SubscribeMessage);
-                    return true;
-                } else
-                {
-                    return false;
-                }
+                _client.QueueMessage(mqttMessage.SubscribeMessage);
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+                return true;
             }
 
             var success = _client.Subscribe(mqttMessage);
