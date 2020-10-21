@@ -141,8 +141,8 @@ namespace PC2MQTT.Sensors
             bool result;
             try
             {
-                if (!mqttMessage.GetRawTopic().ValidateTopic())
-                    return false;
+                mqttMessage.GetRawTopic().ValidateTopic();
+
             } catch (Exception ex)
             {
                 Log.Debug($"Topic {mqttMessage.GetRawTopic()} validated false: {ex.Message}");
