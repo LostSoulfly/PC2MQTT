@@ -50,6 +50,7 @@ namespace PC2MQTT.MQTT
         }
 
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage SubscribeMessage
         {
             get
@@ -59,6 +60,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage PublishMessage
         {
             get
@@ -68,6 +70,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage UnsubscribeMessage
         {
             get
@@ -77,6 +80,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage ReceivedMessage
         {
             get
@@ -87,6 +91,7 @@ namespace PC2MQTT.MQTT
         }
 
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage SendImmediately
         {
             get
@@ -96,6 +101,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage QueueMessage
         {
             get
@@ -176,6 +182,7 @@ namespace PC2MQTT.MQTT
             return this;
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         /// <summary>
         /// This is a shorter version of AddDeviceIdToTopic()
         /// </summary>
@@ -189,6 +196,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage AddSingleLevelWildcard
         {
             get
@@ -199,6 +207,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage AddMultiLevelWildcard
         {
             get
