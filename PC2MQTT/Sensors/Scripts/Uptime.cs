@@ -1,104 +1,111 @@
-﻿//using BadLogger;
-//using ExtensionMethods;
-//using PC2MQTT.MQTT;
-//using System;
-//using System.Runtime.InteropServices;
-//using System.Timers;
+﻿using BadLogger;
+using ExtensionMethods;
+using PC2MQTT.MQTT;
+using System;
+using System.Runtime.InteropServices;
+using System.Timers;
 
-//namespace PC2MQTT.Sensors
-//{
-//    public class Uptime : PC2MQTT.Sensors.ISensor
-//    {
-//        public bool IsInitialized { get; set; }
+namespace PC2MQTT.Sensors
+{
+    public class Uptime : PC2MQTT.Sensors.ISensor
+    {
+        public bool IsInitialized { get; set; }
 
-//        public SensorHost sensorHost { get; set; }
+        public SensorHost sensorHost { get; set; }
 
-//        private Timer fiveSeconds;
+        private Timer fiveSeconds;
 
-//        private BadLogger.BadLogger Log;
+        private BadLogger.BadLogger Log;
 
-//        public bool DidSensorCompile() => true;
+        public bool DidSensorCompile() => true;
 
-//        public bool IsCompatibleWithCurrentRuntime() => true;
+        public bool IsCompatibleWithCurrentRuntime() => true;
 
-//        public void Dispose()
-//        {
-//            Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-//            Log = null;
-//            fiveSeconds.Dispose();
-//            sensorHost = null;
-//        }
+        public void Dispose()
+        {
+            Log.Debug($"Disposing [{GetSensorIdentifier()}]");
+            Log = null;
+            fiveSeconds.Dispose();
+            sensorHost = null;
+        }
 
-//        public string GetSensorIdentifier() => this.GetType().Name;
+        public string GetSensorIdentifier() => this.GetType().Name;
 
-//        public TimeSpan GetUpTime()
-//        {
-//            if (CSScriptLib.Runtime.IsLinux || CSScriptLib.Runtime.IsMono)
-//            {
-//                string output = "cat /proc/uptime".LinuxBashResult();
-//                var uptime = output.Split(" ");
-//                return TimeSpan.FromSeconds(double.Parse(uptime[0]));
-//            }
+        public TimeSpan GetUpTime()
+        {
+            if (CSScriptLib.Runtime.IsLinux || CSScriptLib.Runtime.IsMono)
+            {
+                string output = "cat /proc/uptime".LinuxBashResult();
+                var uptime = output.Split(" ");
+                return TimeSpan.FromSeconds(double.Parse(uptime[0]));
+            }
 
-//            if (CSScriptLib.Runtime.IsWin)
-//            {
-//                //string cmd = "wmic path Win32_OperatingSystem get LastBootUpTime".WindowsShellResult();
-//                //Log.Info("cmd: " + cmd);
+            if (CSScriptLib.Runtime.IsWin)
+            {
+                //string cmd = "wmic path Win32_OperatingSystem get LastBootUpTime".WindowsShellResult();
+                //Log.Info("cmd: " + cmd);
 
-//                return TimeSpan.FromMilliseconds(GetTickCount64());
-//            }
+                return TimeSpan.FromMilliseconds(GetTickCount64());
+            }
 
-//            return TimeSpan.MinValue;
-//        }
+            return TimeSpan.MinValue;
+        }
 
-//        public bool Initialize(SensorHost sensorHost)
-//        {
-//            Log = LogManager.GetCurrentClassLogger();
-//            this.sensorHost = sensorHost;
+        public bool Initialize(SensorHost sensorHost)
+        {
+            Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
+            this.sensorHost = sensorHost;
 
-//            return true;
-//        }
+            return true;
+        }
 
-//        public void ProcessMessage(MqttMessage mqttMessage)
-//        {
-//            Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.topic}]");
+        public void ProcessMessage(MqttMessage mqttMessage)
+        {
+            Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.GetRawTopic()}]");
 
-//            if (mqttMessage.topic == "/uptime/get")
-//            {
-//                Log.Info("Received uptime request");
-//                this.sensorHost.Publish("/uptime/current", GetUpTime().TotalMilliseconds.ToString(), prependDeviceId: true, retain: false);
-//            }
-//            else if (mqttMessage.topic == "/uptime/current")
-//            {
-//                Log.Info("Received uptime message: " + mqttMessage.message + "ms");
-//            }
-//        }
+            if (mqttMessage.GetTopicWithoutDeviceId() == "uptime/get")
+            {
+                Log.Info("Received uptime request");
+                if (!sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceIdToTopic.AddTopic("/uptime/current").SetMessage(GetUpTime().TotalMilliseconds.ToString()).DoNotRetain.Build()))
+                    Log.Info("Failed to publish to /example1/status");
+            }
+            else if (mqttMessage.GetTopicWithoutDeviceId() == "uptime/current")
+            {
+                Log.Info("Received uptime message: " + mqttMessage.message + "ms");
+            }
+        }
 
-//        public void SensorMain()
-//        {
-//            Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+        public void SensorMain()
+        {
+            Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
-//            this.sensorHost.Subscribe("/uptime/get");
-//            this.sensorHost.Subscribe("/uptime/current");
+            //this.sensorHost.Subscribe("/uptime/get");
+            //this.sensorHost.Subscribe("/uptime/current");
 
-//            Log.Info("Requesting my own uptime every 15 seconds..");
 
-//            fiveSeconds = new Timer(15000);
-//            fiveSeconds.Elapsed += delegate { this.sensorHost.Publish("/uptime/get", "", prependDeviceId: true, retain: false); };
-//            fiveSeconds.Start();
-//        }
+            var msg = MqttMessageBuilder.NewMessage().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/uptime/").AddSingleLevelWildcard.DoNotRetain.Build();
+            if (!sensorHost.Subscribe(msg))
+                Log.Info("Failed to subscribe to /example2/#");
 
-//        public void Uninitialize()
-//        {
-//            if (fiveSeconds != null)
-//            {
-//                fiveSeconds.Stop();
-//                fiveSeconds.Dispose();
-//            }
-//        }
+            Log.Info("Requesting my own uptime every 15 seconds..");
 
-//        [DllImport("kernel32")]
-//        private static extern UInt64 GetTickCount64();
+            fiveSeconds = new Timer(15000);
+            fiveSeconds.Elapsed += delegate { sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceIdToTopic.AddTopic("/uptime/get").DoNotRetain.Build()); };
 
-//    }
-//}
+                fiveSeconds.Start();
+        }
+
+        public void Uninitialize()
+        {
+            if (fiveSeconds != null)
+            {
+                fiveSeconds.Stop();
+                fiveSeconds.Dispose();
+            }
+        }
+
+        [DllImport("kernel32")]
+        private static extern UInt64 GetTickCount64();
+
+    }
+}
