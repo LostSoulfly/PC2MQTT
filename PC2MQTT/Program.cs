@@ -132,6 +132,8 @@ namespace PC2MQTT
             }
         }
 
+        private static readonly AutoResetEvent _closing = new AutoResetEvent(false);
+
         private static void Main(string[] args)
         {
             Console.WriteLine($"PC2MQTT v{Version} starting");
@@ -147,12 +149,10 @@ namespace PC2MQTT
             InitializeSensors(settings.config.useOnlyBuiltInScripts);
             sensorManager.StartSensors();
 
-            while (Console.ReadKey().Key != ConsoleKey.Escape)
-            {
-                System.Threading.Thread.Sleep(10);
-            }
+            Console.CancelKeyPress += new ConsoleCancelEventHandler(OnExit);
+            _closing.WaitOne();
 
-            Log.Info("Escape key pressed, shutting down..");
+            Log.Info("Shutting down..");
 
             Log.Debug("Disposing of SensorManager..");
             sensorManager.Dispose();
@@ -161,6 +161,11 @@ namespace PC2MQTT
 
             settings.SaveSettings();
             Environment.Exit(0);
+        }
+        protected static void OnExit(object sender, ConsoleCancelEventArgs args)
+        {
+            args.Cancel = true;
+            _closing.Set();
         }
     }
 }
