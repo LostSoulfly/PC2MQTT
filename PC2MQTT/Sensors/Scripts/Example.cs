@@ -78,7 +78,6 @@ namespace PC2MQTT.Sensors
             // If we receive a message for our unload topic, call sensorHost.Dispose to start the process
             if (mqttMessage.GetTopicWithoutDeviceId() == "example3/unload_example_script" && mqttMessage.message == "unload")
             {
-                return;
                 Log.Info("Disposing of myself in 5 seconds..");
                 System.Threading.Thread.Sleep(5000);
                 sensorHost.Dispose();
@@ -102,7 +101,7 @@ namespace PC2MQTT.Sensors
 
             // subscribe to all levels above and including /example/
             // for example, /example/hello/world/test would trigger.
-            var msg = MqttMessageBuilder.NewMessage().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/example2/").AddMultiLevelWildcard().DoNotRetain.Build();
+            var msg = MqttMessageBuilder.NewMessage().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/example2/").AddMultiLevelWildcard.DoNotRetain.Build();
             if (!sensorHost.Subscribe(msg))
                 Log.Info("Failed to subscribe to /example2/#");
 
@@ -171,7 +170,7 @@ namespace PC2MQTT.Sensors
             // Start the timer
             unloadTimer.Start();
 
-            var dc = new MqttMessageBuilder().SubscribeMessage.AddDeviceId.AddMultiLevelWildcard().AddSingleLevelWildcard.Build();
+            var dc = new MqttMessageBuilder().SubscribeMessage.AddDeviceId.AddMultiLevelWildcard.AddSingleLevelWildcard.Build();
 
             sensorHost.Subscribe(dc);
 
