@@ -170,9 +170,10 @@ namespace PC2MQTT.Sensors
             // Start the timer
             unloadTimer.Start();
 
+            /* This will not send because you cannot have multiple wildcards in the same sub message!
             var dc = new MqttMessageBuilder().SubscribeMessage.AddDeviceId.AddMultiLevelWildcard.AddSingleLevelWildcard.Build();
-
             sensorHost.Subscribe(dc);
+            */
 
             // At any time you can unsubscribe from all topics but it's not necessary here
             // sensorHost.UnsubscribeAllTopics();
