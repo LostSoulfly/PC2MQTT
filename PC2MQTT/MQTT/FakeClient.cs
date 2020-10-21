@@ -39,7 +39,7 @@ namespace PC2MQTT.MQTT
         public FakeClient(MqttSettings mqttSettings)
         {
             this._mqttSettings = mqttSettings;
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("FakeMqtt");
             Log.Warn("***");
             Log.Warn("Initializing FakeClient. No actual MQTT connections will be made.");
             Log.Warn("Essentially a very basic, very fake MQTT internal server.");

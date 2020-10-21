@@ -140,7 +140,7 @@ namespace PC2MQTT
             InitializeExtensions();
 
             Logging.InitializeLogging(settings);
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("PC2MQTT");
 
             InitializeMqtt();
 

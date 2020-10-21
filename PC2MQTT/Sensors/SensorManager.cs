@@ -30,7 +30,7 @@ namespace PC2MQTT.Sensors
             this._client = client;
             this._settings = settings;
 
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("SensorManager");
             sensorCleanupTimer = new System.Timers.Timer(60000);
             sensorCleanupTimer.Elapsed += SensorCleanupTimer_Elapsed;
 

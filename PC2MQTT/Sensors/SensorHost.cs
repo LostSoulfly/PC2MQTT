@@ -28,7 +28,7 @@ namespace PC2MQTT.Sensors
             this._client = client;
             this._sensorManager = sensorManager;
 
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("SensorHost");
 
             IsCodeLoaded = true;
 
@@ -41,7 +41,7 @@ namespace PC2MQTT.Sensors
             this._client = client;
             this._sensorManager = sensorManager;
 
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("SensorHost");
 
             IsCodeLoaded = false;
         }
@@ -52,7 +52,7 @@ namespace PC2MQTT.Sensors
             this._sensorManager = sensorManager;
             this.sensor = sensor;
 
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger("SensorHost");
 
             if (sensor.IsCompatibleWithCurrentRuntime())
             {

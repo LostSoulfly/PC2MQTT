@@ -46,7 +46,7 @@ namespace PC2MQTT.Sensors
         public bool Initialize(SensorHost sensorHost)
         {
             // Initialize BadLogger so we can pass log messages, not required
-            Log = LogManager.GetCurrentClassLogger();
+            Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
 
             // You'll want to save this for later in the interface sensorHost object
             this.sensorHost = sensorHost;
