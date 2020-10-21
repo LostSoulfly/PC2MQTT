@@ -45,7 +45,6 @@ namespace PC2MQTT.MQTT
             Log.Warn("Essentially a very basic, very fake MQTT internal server.");
             Log.Warn($"Using fake delays: {_mqttSettings.useFakeMqttDelays} | Using fake failures: {_mqttSettings.useFakeMqttFailures}");
             Log.Warn("***");
-            System.Threading.Thread.Sleep(GetRandom());
         }
 
         public int GetRandom(int max = 2000)
@@ -78,8 +77,8 @@ namespace PC2MQTT.MQTT
                 var msg = _messageQueue.Take();
 
                 Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                System.Threading.Thread.Sleep(GetRandom(500));
                 ProcessMessage(msg);
-                Thread.Sleep(10);
             }
         }
         public void MqttDisconnect()
@@ -142,12 +141,17 @@ namespace PC2MQTT.MQTT
 
                 message.messageId = _messageId++;
 
+                /*
                 Task.Run(() =>
                 {
-                    System.Threading.Thread.Sleep(GetRandom());
+                    //System.Threading.Thread.Sleep(GetRandom());
                     //message.prependDeviceId = false;
                     MessageReceivedString?.Invoke(message);
                 });
+                */
+
+                System.Threading.Thread.Sleep(GetRandom(100));
+                MessageReceivedString?.Invoke(message);
             }
             return message;
         }
@@ -155,7 +159,7 @@ namespace PC2MQTT.MQTT
         public MqttMessage Subscribe(MqttMessage message)
         {
 
-            System.Threading.Thread.Sleep(GetRandom(250));
+            //System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
             if (!success) Log.Trace($"Randomly failing Subscribe call for {message.GetRawTopic()}");
@@ -172,7 +176,7 @@ namespace PC2MQTT.MQTT
 
         public MqttMessage Unsubscribe(MqttMessage message)
         {
-            System.Threading.Thread.Sleep(GetRandom(250));
+            //System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
             if (!success) Log.Trace($"Randomly failing Unubscribe call for {message.GetRawTopic()}");
