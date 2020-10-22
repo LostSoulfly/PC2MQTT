@@ -94,22 +94,22 @@ namespace PC2MQTT
             sensorManager.ProcessMessage(mqttMessage);
         }
 
-        private static void InitializeSensors(bool useOnlyBuiltInScripts = true)
+        private static void InitializeSensors(bool useOnlyBuiltInSensors = true)
         {
             sensorManager = new SensorManager(client, settings);
 
             List<string> available = new List<string>();
 
-            if (!useOnlyBuiltInScripts)
+            if (!useOnlyBuiltInSensors)
             {
                 CSScriptLib.RoslynEvaluator.LoadCompilers();
                 available.AddRange(sensorManager.LoadSensorScripts());
-                available.AddRange(sensorManager.LoadBuiltInScripts());
+                available.AddRange(sensorManager.LoadBuiltInSensors());
             }
             else
             {
-                Log.Info("Using only built-in scripts. (This improves runtime speeds and memory usage)");
-                available.AddRange(sensorManager.LoadBuiltInScripts());
+                Log.Info("Using only built-in sensors. (This improves runtime speeds and memory usage)");
+                available.AddRange(sensorManager.LoadBuiltInSensors());
             }
 
             if (settings.config.enabledSensors.Count == 0)
@@ -146,7 +146,7 @@ namespace PC2MQTT
 
             InitializeMqtt();
 
-            InitializeSensors(settings.config.useOnlyBuiltInScripts);
+            InitializeSensors(settings.config.useOnlyBuiltInSensors);
             sensorManager.StartSensors();
 
             Console.CancelKeyPress += new ConsoleCancelEventHandler(OnExit);

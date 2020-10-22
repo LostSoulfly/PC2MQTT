@@ -116,7 +116,7 @@ namespace PC2MQTT.Sensors
 
             var sensorFiles = Directory.GetFiles("sensors/", "*.cs").ToList();
 
-            Log.Info("Compiling sensor scripts. You can use only built-in sensors by setting useOnlyBuiltInScripts in config.json.");
+            Log.Info("Compiling sensor files. You can use only built-in sensors by setting useOnlyBuiltInSensors in config.json.");
             foreach (var item in sensorFiles)
             {
                 //Task<SensorHost> t;
@@ -326,7 +326,7 @@ namespace PC2MQTT.Sensors
             return result;
         }
 
-        internal List<string> LoadBuiltInScripts()
+        internal List<string> LoadBuiltInSensors()
         {
             System.Reflection.Assembly ass = System.Reflection.Assembly.GetEntryAssembly();
 
