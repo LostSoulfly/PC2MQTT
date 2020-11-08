@@ -105,5 +105,10 @@ namespace PC2MQTT.Sensors
 
             return compatible;
         }
+
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
+        }
     }
 }

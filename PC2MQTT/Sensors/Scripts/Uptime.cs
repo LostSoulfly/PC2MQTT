@@ -107,5 +107,9 @@ namespace PC2MQTT.Sensors
         [DllImport("kernel32")]
         private static extern UInt64 GetTickCount64();
 
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
+        }
     }
 }

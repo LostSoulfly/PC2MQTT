@@ -25,6 +25,7 @@ namespace PC2MQTT
             // Notify sensors the server connection was closed?
             // auto-resub to topics on reconnection?
             disconnectedUnexpectedly = true;
+            sensorManager.NotifySensorsServerStatus(ServerState.Reconnecting, ServerStateReason.Unknown);
         }
 
         private static void Client_ConnectionConnected()
@@ -35,6 +36,7 @@ namespace PC2MQTT
             {
                 sensorManager.ReMapTopics();
                 disconnectedUnexpectedly = false;
+                sensorManager.NotifySensorsServerStatus(ServerState.Reconnected, ServerStateReason.Unknown);
             }
         }
 
@@ -151,6 +153,7 @@ namespace PC2MQTT
 
             Console.CancelKeyPress += new ConsoleCancelEventHandler(OnExit);
             _closing.WaitOne();
+            sensorManager.NotifySensorsServerStatus(ServerState.Disconnecting, ServerStateReason.ShuttingDown);
 
             Log.Info("Shutting down..");
 

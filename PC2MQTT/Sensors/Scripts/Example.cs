@@ -1,6 +1,7 @@
 ﻿using BadLogger;
 using PC2MQTT.MQTT;
 using System;
+using System.Collections.Generic;
 using System.Timers;
 using static PC2MQTT.MQTT.MqttMessage;
 
@@ -42,7 +43,8 @@ namespace PC2MQTT.Sensors
         // This is called by PC2MQTT after compiling the sensor. Do your, ugh, initialization stuff here.
         // Load any databases, connect to any services, spin up any servers, etc.
         // Control will be returned to the sensor in SensorMain after all sensors have loaded.
-        // Note that sensor scripts are non-blocking, so you could take all the time you want here.. but please don't :(
+        // Note that sensor scripts are non-blocking so other scripts will run as well, but if you take too long without
+        // returning here your sensor will be disposed because it did not initialize in a timely manner.
         public bool Initialize(SensorHost sensorHost)
         {
             // Initialize BadLogger so we can pass log messages, not required
@@ -51,14 +53,49 @@ namespace PC2MQTT.Sensors
             // You'll want to save this for later in the interface sensorHost object
             this.sensorHost = sensorHost;
 
-            Log.Info($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-            Log.Info($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
+            Log.Debug($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            Log.Debug($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
             
             // Initialize needs to return true relatively quickly but you can stall for a while or run processor-intensive things beforehand.
             // Control is returned to the sensor in SensorMain after initialization of all sensors.
             Log.Info($"We're not done initializing yet.. just a bit longer..");
             //System.Threading.Thread.Sleep(5000);
 
+
+            // You can save and load data types that NewtonsoftJson can handle using built-in Save/Load features shown below
+            // Note that this data is only truly saved if the server gracefully exits currently as it is stored in config.json
+            // Or you can of course roll your own save/load methods.
+            string test = "hello world";
+
+            // Save the string "hello world" under the key "test" using sensorHost's SaveData method
+            sensorHost.SaveData("test", test);
+
+            // Retrieve the string with the same key "test".
+            // With this, you need to specify the type of the data you are retrieving
+            var stringResult1 = sensorHost.LoadData("test", type: typeof(string));
+
+            // This one will fail because it doesn't exist
+            var stringResult2 = sensorHost.LoadData("test2") as string;
+
+            Log.Debug("Load Data [test] result: " + stringResult1);
+
+            // Can also use other data types such as collections
+            List<string> testList = new List<string>();
+            testList.Add("hello");
+            testList.Add("world");
+            testList.Add("!");
+
+            // save the collection under "testList"
+            sensorHost.SaveData("testList", testList, overWrite: true);
+
+            // Load it again. Note that we're setting global = false but it's not necessary.
+            // You can store global objects for use in other sensors with global = true
+            // For this data, however, we need to pass the type otherwise it returns a JArray.
+            List<string> resultList = sensorHost.LoadData("testList", global: false , type: typeof(List<string>));
+
+            Log.Debug($"Load Data [testList] result: Count:{resultList.Count}  [{String.Join(" ", resultList)}]");
+
+            System.Threading.Thread.Sleep(5000);
             Log.Info($"Finishing initialization in {this.GetSensorIdentifier()}");
 
             // Let PC2MQTT know that we're done and initialized properly.
@@ -87,7 +124,7 @@ namespace PC2MQTT.Sensors
         public void SensorMain()
         {
             // We should be in our own thread. Hopefully. I'm still new to threading..
-            Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
             // Below are several different ways to create an MqttMessage object. Pick whichever one works best for you!
 
@@ -216,6 +253,11 @@ namespace PC2MQTT.Sensors
             if (CSScriptLib.Runtime.IsWin) compatible = true;
 
             return compatible;
+        }
+
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
         }
     }
 }

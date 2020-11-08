@@ -22,5 +22,24 @@ namespace PC2MQTT.Sensors
         public void SensorMain();
 
         public void Uninitialize();
+
+        public void ServerStateChange(ServerState state, ServerStateReason reason);
+    }
+
+    public enum ServerState
+    {
+        Connected = 0,
+        Disconnected,
+        Disconnecting,
+        Reconnected,
+        Reconnecting
+    }
+
+    public enum ServerStateReason
+    {
+        ShuttingDown = 0,
+        ServerDisconnected,
+        ClientDisconnected,
+        Unknown
     }
 }

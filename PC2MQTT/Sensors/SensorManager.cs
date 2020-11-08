@@ -18,7 +18,7 @@ namespace PC2MQTT.Sensors
         public ConcurrentDictionary<string, SensorHost> sensors = new ConcurrentDictionary<string, SensorHost>();
         private IClient _client;
 
-        private Helpers.Settings _settings;
+        public Helpers.Settings settings;
         private BadLogger.BadLogger Log;
         private System.Timers.Timer sensorCleanupTimer;
         private ConcurrentDictionary<string, SensorHost> sensorMultiLevelWildcardTopics;
@@ -28,10 +28,10 @@ namespace PC2MQTT.Sensors
         public SensorManager(IClient client, Helpers.Settings settings)
         {
             this._client = client;
-            this._settings = settings;
+            this.settings = settings;
 
             Log = LogManager.GetCurrentClassLogger("SensorManager");
-            sensorCleanupTimer = new System.Timers.Timer(60000);
+            sensorCleanupTimer = new System.Timers.Timer(TimeSpan.FromMinutes(5).TotalMilliseconds);
             sensorCleanupTimer.Elapsed += SensorCleanupTimer_Elapsed;
 
             sensorTopics = new ConcurrentDictionary<string, SensorHost>();
@@ -419,6 +419,18 @@ namespace PC2MQTT.Sensors
                     var after = System.GC.GetTotalMemory(true);
 
                     Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
+                }
+            }
+        }
+
+        public void NotifySensorsServerStatus(ServerState state, ServerStateReason reason)
+        {
+            foreach (var item in sensors)
+            {
+                if (item.Value.IsCompiled  && item.Value.sensor.IsInitialized)
+                {
+                    Log.Trace($"Notifying [{item.Value.SensorIdentifier}] of MQTT server status change");
+                    item.Value.sensor.ServerStateChange(state, reason);
                 }
             }
         }

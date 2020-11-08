@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using PC2MQTT.MQTT;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 
@@ -18,6 +19,7 @@ namespace PC2MQTT.Helpers
         public MqttSettings mqttSettings = new MqttSettings();
         public bool useOnlyBuiltInSensors = true;
         public bool resubscribeOnReconnect = true;
+        public ConcurrentDictionary<string, string> sensorData = new ConcurrentDictionary<string, string>();
         //public int screenshotServerPort = 8081;
         //public int webcamServerPort = 8080;
         //public webcamToStream;
@@ -42,6 +44,7 @@ namespace PC2MQTT.Helpers
                 {
                     config = loaded;
                     config.mqttSettings.deviceId = config.mqttSettings.deviceId.ToLower();
+                    if (config.sensorData == null) config.sensorData = new ConcurrentDictionary<string, string>();
                     return true;
                 }
             }

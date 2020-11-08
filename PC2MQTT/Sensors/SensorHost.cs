@@ -101,6 +101,9 @@ namespace PC2MQTT.Sensors
             if (IsCompiled)
                 sensor.IsInitialized = sensor.Initialize(this);
 
+            if (sensor == null)
+                return false;
+
             return sensor.IsInitialized;
         }
 
@@ -183,7 +186,8 @@ namespace PC2MQTT.Sensors
                 {
                     _client.QueueMessage(mqttMessage.SubscribeMessage);
                     return true;
-                } else
+                }
+                else
                 {
                     return false;
                 }
@@ -280,6 +284,56 @@ namespace PC2MQTT.Sensors
                     SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
             }
             catch (Exception ex) { GetLastError = ex.Message; return; }
+        }
+
+        public dynamic LoadData(string name, bool global = false, Type type = null)
+        {
+
+            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
+
+            Log.Debug($"Loading [{name}] for {this.SensorIdentifier}.");
+
+            if (_sensorManager.settings.config.sensorData.TryGetValue(identifier, out var data))
+            {
+                var obj = Newtonsoft.Json.JsonConvert.DeserializeObject(data, type);
+                return obj;
+            } else
+            {
+                Log.Warn($"Failed to load [{name}] for {this.SensorIdentifier}.");
+            }
+
+            return data;
+        }
+
+        public bool SaveData(string name, Object data, bool overWrite = true, bool global = false)
+        {
+
+            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
+
+            Log.Debug($"Saving [{name}] for {this.SensorIdentifier}.");
+
+            var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(data);
+
+            try
+            {
+
+                bool exists = _sensorManager.settings.config.sensorData.ContainsKey(identifier);
+
+                if (overWrite && exists)
+                    _sensorManager.settings.config.sensorData.TryRemove(identifier, out var o);
+
+                if (exists && !overWrite)
+                {
+                    Log.Warn($"Failed to save [{name}] for {this.SensorIdentifier}: overWrite is false.");
+                    return false;
+                }
+
+                return _sensorManager.settings.config.sensorData.TryAdd(identifier, serialized);
+            }
+            catch { }
+
+
+            return true;
         }
     }
 }
