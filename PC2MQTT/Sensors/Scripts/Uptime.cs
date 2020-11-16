@@ -3,6 +3,7 @@ using ExtensionMethods;
 using PC2MQTT.MQTT;
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Timers;
 
 namespace PC2MQTT.Sensors
@@ -71,8 +72,38 @@ namespace PC2MQTT.Sensors
             }
             else if (mqttMessage.GetTopicWithoutDeviceId() == "uptime/current")
             {
-                Log.Info("Received uptime message: " + mqttMessage.message + "ms");
+                //Log.Info("Received uptime message: " + mqttMessage.message + "ms");
+                Log.Info("Uptime received: " + HumanReadableTimeSpan(double.Parse(mqttMessage.message)));
             }
+        }
+
+        public static string HumanReadableTimeSpan(double milliseconds)
+        {
+            if (milliseconds == 0) return "0 ms";
+
+            StringBuilder sb = new StringBuilder();
+
+            Action<int, StringBuilder, int> addActionToSB =  //or pass an entire new format!
+            (val, displayunit, zeroplaces) =>
+            {
+                if (val > 0)
+                    sb.AppendFormat(
+            " {0:DZ}X".Replace("X", displayunit.ToString())
+            .Replace("Z", zeroplaces.ToString())
+            , val
+           );
+            };
+
+            var t = TimeSpan.FromMilliseconds(milliseconds);
+
+            //addActionToSBList(timespan property, readable display displayunit, number of zero placeholders) //Sun 24-Sep-17 8:30pm metadataconsulting.ca - Star Trek Disco
+            addActionToSB(t.Days, new StringBuilder("d"), 1);
+            addActionToSB(t.Hours, new StringBuilder("h"), 1);
+            addActionToSB(t.Minutes, new StringBuilder("m"), 2);
+            addActionToSB(t.Seconds, new StringBuilder("s"), 2);
+            addActionToSB(t.Milliseconds, new StringBuilder("ms"), 3);
+
+            return sb.ToString().TrimStart();
         }
 
         public void SensorMain()

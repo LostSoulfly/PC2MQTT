@@ -286,7 +286,7 @@ namespace PC2MQTT.Sensors
             catch (Exception ex) { GetLastError = ex.Message; return; }
         }
 
-        public dynamic LoadData(string name, bool global = false, Type type = null)
+        public dynamic LoadData(string name, Object defaultData = null, bool global = false, Type type = null)
         {
 
             string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
@@ -299,7 +299,15 @@ namespace PC2MQTT.Sensors
                 return obj;
             } else
             {
-                Log.Warn($"Failed to load [{name}] for {this.SensorIdentifier}.");
+                if (defaultData == null)
+                {
+                    Log.Warn($"Failed to load [{name}] for {this.SensorIdentifier}.");
+                }
+                else
+                {
+                    SaveData(name, defaultData, false, global);
+                    return LoadData(name, null, global, type);
+                }
             }
 
             return data;
