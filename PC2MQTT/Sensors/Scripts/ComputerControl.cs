@@ -48,22 +48,66 @@ namespace PC2MQTT.Sensors
                 return;
 
             if (topic[0] == "computer")
-                HandleCommand(topic[1..].ToString(), mqttMessage.message);
+                HandleCommand(topic, mqttMessage.message);
             else
-
                 Log.Info($"[ProcessMessage] Unknown topic [{mqttMessage.GetRawTopic()}]");
         }
 
-        private void HandleCommand(string command, string message)
+        private void HandleCommand(string[] command, string message)
         {
+            var args = message;
+            Log.Info($"[HandleCommand] Processing [{String.Join("/", command[1..])}] with args [{message}]");
 
+            switch (command[0])
+            {
+                case "shutdown":
+                    break;
+
+                case "restart":
+                case "reboot":
+                    break;
+
+                case "lock":
+                    break;
+
+                case "run":
+                case "shell":
+                    break;
+
+                case "sleep":
+                    break;
+
+                case "hibernate":
+                    break;
+
+                case "monitor":
+                    break;
+
+                case "audio":
+                case "sound":
+                    break;
+
+                case "screenshot":
+                    break;
+
+                case "ping":
+                    break;
+
+                case "uptime":
+                    break;
+
+
+
+                default:
+                    break;
+            }
         }
 
         public void SensorMain()
         {
             Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
-            sensorHost.Publish(MqttMessageBuilder.
+            sensorHost.Subscribe(MqttMessageBuilder.
                 NewMessage().
                 AddDeviceIdToTopic.
                 SubscribeMessage.
@@ -77,6 +121,15 @@ namespace PC2MQTT.Sensors
             {
                 //Log.Info("If you want, you can stay in control for the life of the sensor using something like this.");
                 System.Threading.Thread.Sleep(10000);
+                sensorHost.Publish(MqttMessageBuilder.
+                NewMessage().
+                AddDeviceIdToTopic.
+                PublishMessage.
+                AddTopic("computer").
+                AddTopic("shutdown").
+                DoNotRetain.
+                QueueMessage.
+                Build());
             }
         }
 
