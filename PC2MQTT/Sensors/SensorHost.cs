@@ -127,6 +127,8 @@ namespace PC2MQTT.Sensors
             if (_client == null)
                 return false;
 
+            mqttMessage.SetMessageType(MqttMessage.MqttMessageType.MQTT_PUBLISH);
+
             if (!mqttMessage.sendImmediately)
             {
                 _client.QueueMessage(mqttMessage.PublishMessage);
@@ -156,6 +158,9 @@ namespace PC2MQTT.Sensors
             if (_client == null)
                 return false;
 
+
+            mqttMessage.SetMessageType(MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE);
+
             if (!mqttMessage.sendImmediately)
             {
                 _client.QueueMessage(mqttMessage.UnsubscribeMessage);
@@ -179,6 +184,8 @@ namespace PC2MQTT.Sensors
         {
             if (_client == null)
                 return false;
+
+            mqttMessage.SetMessageType(MqttMessage.MqttMessageType.MQTT_SUBSCRIBE);
 
             if (!mqttMessage.sendImmediately)
             {
@@ -205,6 +212,9 @@ namespace PC2MQTT.Sensors
 
             return false;
         }
+
+
+        public bool SendMessage(MqttMessage mqttMessage) => SendMqttMessage(mqttMessage);
 
         public bool SendMqttMessage(MqttMessage mqttMessage)
         {
