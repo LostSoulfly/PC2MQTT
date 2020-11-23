@@ -105,8 +105,13 @@ namespace PC2MQTT
             if (!useOnlyBuiltInSensors)
             {
                 CSScriptLib.RoslynEvaluator.LoadCompilers();
+
                 available.AddRange(sensorManager.LoadSensorScripts());
-                available.AddRange(sensorManager.LoadBuiltInSensors());
+
+                foreach (var item in sensorManager.LoadBuiltInSensors())
+                    if (!available.Contains(item))
+                        available.Add(item);
+
             }
             else
             {

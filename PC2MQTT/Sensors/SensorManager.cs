@@ -114,9 +114,12 @@ namespace PC2MQTT.Sensors
 
             var tasks = new List<Task<SensorHost>>();
 
+            if (!Directory.Exists("sensors/"))
+                return new List<string>();
+
             var sensorFiles = Directory.GetFiles("sensors/", "*.cs").ToList();
 
-            Log.Info("Compiling sensor files. You can use only built-in sensors by setting useOnlyBuiltInSensors in config.json.");
+            Log.Info("Compiling sensor files. To skip set useOnlyBuiltInSensors in config.json");
             foreach (var item in sensorFiles)
             {
                 //Task<SensorHost> t;
