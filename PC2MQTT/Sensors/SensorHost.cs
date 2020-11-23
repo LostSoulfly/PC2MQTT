@@ -345,7 +345,11 @@ namespace PC2MQTT.Sensors
                     return false;
                 }
 
-                return _sensorManager.settings.config.sensorData.TryAdd(identifier, serialized);
+                var saved = _sensorManager.settings.config.sensorData.TryAdd(identifier, serialized);
+
+                _sensorManager.settings.newDataToSave = true;
+
+                return saved;
             }
             catch { }
 

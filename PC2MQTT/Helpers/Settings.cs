@@ -20,21 +20,23 @@ namespace PC2MQTT.Helpers
         public bool useOnlyBuiltInSensors = true;
         public bool resubscribeOnReconnect = true;
         public ConcurrentDictionary<string, string> sensorData = new ConcurrentDictionary<string, string>();
-        //public int screenshotServerPort = 8081;
-        //public int webcamServerPort = 8080;
-        //public webcamToStream;
+
     }
 
     public class Settings
     {
         public Config config;
         public string configFileName = "config.json";
+        System.Timers.Timer autoSaveTimer;
+        public bool newDataToSave = false;
 
         public bool LoadSettings(string fileName = "")
         {
             this.config = new Config();
             if (String.IsNullOrWhiteSpace(fileName))
                 fileName = configFileName;
+
+            StartAutoSaveTimer();
 
             try
             {
@@ -48,17 +50,13 @@ namespace PC2MQTT.Helpers
                     return true;
                 }
             }
-            catch
-            {
-                //Logging.Log($"Unable to load settings file {fileName}: {ex.Message}");
-            }
+            catch { }
 
             return false;
         }
 
         public bool SaveSettings(string fileName = "")
         {
-            //Logging.Log($"Saving settings to {fileName}..");
             try
             {
                 if (String.IsNullOrWhiteSpace(fileName))
@@ -67,12 +65,22 @@ namespace PC2MQTT.Helpers
                 File.WriteAllText(fileName, JsonConvert.SerializeObject(config, formatting: Formatting.Indented));
                 return true;
             }
-            catch
-            {
-                //Logging.Log($"Unable to save settings file {fileName}: {ex.Message}");
-            }
+            catch { }
 
             return false;
+        }
+
+        private void StartAutoSaveTimer()
+        {
+            if (autoSaveTimer != null)
+                return;
+
+            autoSaveTimer = new System.Timers.Timer(TimeSpan.FromMinutes(5).TotalMilliseconds);
+            autoSaveTimer.Elapsed += delegate {
+                if (this.newDataToSave)
+                    this.SaveSettings();
+            };
+            autoSaveTimer.Start();
         }
     }
 }
