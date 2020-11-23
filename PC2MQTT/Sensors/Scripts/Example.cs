@@ -57,9 +57,9 @@ namespace PC2MQTT.Sensors
             Log.Debug($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
             
             // Initialize needs to return true relatively quickly but you can stall for a while or run processor-intensive things beforehand.
-            // Control is returned to the sensor in SensorMain after initialization of all sensors.
+            // Control is returned to the sensor in SensorMain after initialization is complete.
             Log.Info($"We're not done initializing yet.. just a bit longer..");
-            //System.Threading.Thread.Sleep(5000);
+            System.Threading.Thread.Sleep(2000);
 
 
             // You can save and load data types that NewtonsoftJson can handle using built-in Save/Load features shown below
@@ -75,7 +75,10 @@ namespace PC2MQTT.Sensors
             var stringResult1 = sensorHost.LoadData("test", type: typeof(string));
 
             // This one will fail because it doesn't exist
-            var stringResult2 = sensorHost.LoadData("test2") as string;
+            var stringResult2 = sensorHost.LoadData("test2", type: typeof(string));
+
+            // This one will succeed because it has a default value supplied.
+            var stringResult3 = sensorHost.LoadData("test3", "test3", type: typeof(string));
 
             Log.Debug("Load Data [test] result: " + stringResult1);
 
@@ -86,6 +89,7 @@ namespace PC2MQTT.Sensors
             testList.Add("!");
 
             // save the collection under "testList"
+            // Note that overWrite is true by default and only shown as an example
             sensorHost.SaveData("testList", testList, overWrite: true);
 
             // Load it again. Note that we're setting global = false but it's not necessary.
