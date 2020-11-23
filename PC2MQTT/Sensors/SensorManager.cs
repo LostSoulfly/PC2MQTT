@@ -195,7 +195,6 @@ namespace PC2MQTT.Sensors
                     {
                         Log.Trace($"[MW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(mqttMessage);
-                        return;
                     }
                 }
             }
@@ -217,7 +216,6 @@ namespace PC2MQTT.Sensors
                     {
                         Log.Trace($"[SW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(mqttMessage);
-                        return;
                     }
                 }
             }
@@ -375,6 +373,7 @@ namespace PC2MQTT.Sensors
             }
 
             sensorCleanupTimer.Start();
+            SensorCleanupTimer_Elapsed(null, null);
         }
 
         private SensorHost LoadSensor(string filePath)
