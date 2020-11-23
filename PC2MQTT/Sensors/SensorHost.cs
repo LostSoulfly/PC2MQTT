@@ -37,7 +37,6 @@ namespace PC2MQTT.Sensors
 
         public SensorHost(IClient client, SensorManager sensorManager)
         {
-            this.code = code;
             this._client = client;
             this._sensorManager = sensorManager;
 
@@ -77,7 +76,7 @@ namespace PC2MQTT.Sensors
             try
             {
 
-                if (sensor != null)
+                if (sensor != null && sensor.IsInitialized)
                 {
                     UninitializeSensor();
                     sensor.Dispose();

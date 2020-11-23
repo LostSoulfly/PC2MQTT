@@ -88,7 +88,7 @@ namespace PC2MQTT.MQTT
                 _reconnectTimer = new System.Timers.Timer(_mqttSettings.reconnectInterval);
                 _reconnectTimer.Elapsed += delegate
                 {
-                    if (!client.IsConnected)
+                    if (client != null && !client.IsConnected)
                     {
                         ConnectionReconnecting?.Invoke();
                         _queueCancellationTokenSource.Cancel();

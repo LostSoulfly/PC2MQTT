@@ -57,11 +57,11 @@ namespace ExtensionMethods
 
             var t = topic.Split("/");
 
-            for (int i = 0; i < t.Length; i++)
-            {
-
                 if (t.Contains("#") && t.Contains("+"))
                     throw new System.Exception($"Topic contains multiple different wildcards");
+
+            for (int i = 0; i < t.Length; i++)
+            {
 
                 if (t[i].Length == 0)
                     throw new System.Exception($"Topic section {i} length is zero");
@@ -105,8 +105,6 @@ namespace ExtensionMethods
 
         public static string WindowsShellResult(this string cmd)
         {
-            //var escapedArgs = cmd.Replace("\"", "\\\"");
-
             var process = new Process()
             {
                 StartInfo = new ProcessStartInfo

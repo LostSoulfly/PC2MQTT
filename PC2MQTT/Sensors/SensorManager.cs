@@ -65,7 +65,7 @@ namespace PC2MQTT.Sensors
 
             foreach (var item in sensors)
             {
-                if (item.Value.IsCompiled)
+                if (item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                 {
                     Log.Debug($"Disposing sensor [{item.Value.SensorIdentifier}]");
                     item.Value.Dispose();
