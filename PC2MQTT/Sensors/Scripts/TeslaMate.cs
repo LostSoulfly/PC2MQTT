@@ -1,8 +1,7 @@
 ﻿using BadLogger;
 using PC2MQTT.MQTT;
 using System;
-using System.Collections.Generic;
-using System.Timers;
+using System.Collections.Concurrent;
 using static PC2MQTT.MQTT.MqttMessage;
 
 namespace PC2MQTT.Sensors
@@ -15,7 +14,7 @@ namespace PC2MQTT.Sensors
 
         private BadLogger.BadLogger Log;
 
-        private Dictionary<string, string> _cars = new Dictionary<string, string>();
+        private ConcurrentDictionary<string, string> _cars = new ConcurrentDictionary<string, string>();
 
         public bool DidSensorCompile() => true;
 
@@ -179,7 +178,7 @@ namespace PC2MQTT.Sensors
             }
             else
             {
-                _cars.Add(id, name);
+                _cars.TryAdd(id, name);
             }
                             
         }

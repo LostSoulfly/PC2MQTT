@@ -63,7 +63,7 @@ namespace PC2MQTT.Sensors
 
 
             // You can save and load data types that NewtonsoftJson can handle using built-in Save/Load features shown below
-            // Note that this data is only truly saved if the server gracefully exits currently as it is stored in config.json
+            // Note that this data is only saved every 5 minutes or if the program gracefully shuts down!
             // Or you can of course roll your own save/load methods.
             string test = "hello world";
 
