@@ -1,12 +1,9 @@
 ﻿using BadLogger;
-using ExtensionMethods;
-using PC2MQTT.Helpers;
 using System;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
 using static PC2MQTT.MQTT.MqttMessage;
@@ -51,20 +48,15 @@ namespace PC2MQTT.MQTT
 
         //private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>();
 
-        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
-
         public bool IsConnected => client.IsConnected;
-
         private bool _autoReconnect;
-
+        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
         private MqttSettings _mqttSettings;
 
+        private CancellationTokenSource _queueCancellationTokenSource;
         private System.Timers.Timer _reconnectTimer;
 
         private bool _reconnectTimerStarted;
-
-        private CancellationTokenSource _queueCancellationTokenSource;
-
         private MqttClient client;
 
         private BadLogger.BadLogger Log;
@@ -98,18 +90,6 @@ namespace PC2MQTT.MQTT
             }
         }
 
-        private void Client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
-        {
-            var msg = MqttMessageBuilder
-                .NewMessage()
-                .AddTopic(e.Topic)
-                .SetMessage(Encoding.UTF8.GetString(e.Message))
-                .SetMessageType(MqttMessageType.MQTT_PUBLISH)
-                .Build();
-
-            MessageReceivedString?.Invoke(msg);
-        }
-
         public void MqttConnect()
         {
             if ((_autoReconnect) && (!_reconnectTimerStarted))
@@ -134,7 +114,6 @@ namespace PC2MQTT.MQTT
 
             if (client.IsConnected)
             {
-
                 var onlineWill = MqttMessageBuilder
                     .NewMessage()
                     .AddDeviceIdToTopic
@@ -180,46 +159,6 @@ namespace PC2MQTT.MQTT
 
             Task t;
             t = Task.Run(() => ProcessMessageQueue(), _queueCancellationTokenSource.Token);
-
-        }
-
-        private void ProcessMessageQueue()
-        {
-            Log.Trace("Starting Message Queue Processing..");
-            while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
-            {
-                if (client.IsConnected)
-                {
-                    var msg = _messageQueue.Take();
-
-                    Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
-                    ProcessMessage(msg);
-                }
-                else
-                {
-                    Thread.Sleep(1);
-                }
-            }
-        }
-
-        private MqttMessage ProcessMessage(MqttMessage mqttMessage)
-        {
-            switch (mqttMessage.messageType)
-            {
-                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
-                    this.Publish(mqttMessage);
-                    break;
-
-                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
-                    this.Subscribe(mqttMessage);
-                    break;
-
-                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
-                    this.Unsubscribe(mqttMessage);
-                    break;
-            }
-
-            return mqttMessage;
         }
 
         public void MqttDisconnect()
@@ -242,6 +181,15 @@ namespace PC2MQTT.MQTT
             return mqttMessage;
         }
 
+        public bool QueueMessage(MqttMessage message)
+        {
+            _messageQueue.Add(message);
+
+            return true;
+        }
+
+        public MqttMessage SendMessage(MqttMessage message) => ProcessMessage(message);
+
         public MqttMessage Subscribe(MqttMessage mqttMessage)
         {
             mqttMessage.messageId = client.Subscribe(new string[] { mqttMessage.GetRawTopic() }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
@@ -262,6 +210,57 @@ namespace PC2MQTT.MQTT
 
         private void Client_ConnectionClosed(object sender, EventArgs e) => ConnectionClosed?.Invoke($"Connection closed:", 99);
 
+        private void Client_MqttMsgPublishReceived(object sender, MqttMsgPublishEventArgs e)
+        {
+            var msg = MqttMessageBuilder
+                .NewMessage()
+                .AddTopic(e.Topic)
+                .SetMessage(Encoding.UTF8.GetString(e.Message))
+                .SetMessageType(MqttMessageType.MQTT_PUBLISH)
+                .Build();
+
+            MessageReceivedString?.Invoke(msg);
+        }
+
+        private MqttMessage ProcessMessage(MqttMessage mqttMessage)
+        {
+            switch (mqttMessage.messageType)
+            {
+                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
+                    this.Publish(mqttMessage);
+                    break;
+
+                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
+                    this.Subscribe(mqttMessage);
+                    break;
+
+                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
+                    this.Unsubscribe(mqttMessage);
+                    break;
+            }
+
+            return mqttMessage;
+        }
+
+        private void ProcessMessageQueue()
+        {
+            Log.Trace("Starting Message Queue Processing..");
+            while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
+            {
+                if (client.IsConnected)
+                {
+                    var msg = _messageQueue.Take();
+
+                    Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                    ProcessMessage(msg);
+                }
+                else
+                {
+                    Thread.Sleep(1);
+                }
+            }
+        }
+
         /*
         private void Client_MqttMsgPublishReceived(object sender, uPLibrary.Networking.M2Mqtt.Messages.MqttMsgPublishEventArgs e)
         {
@@ -269,15 +268,6 @@ namespace PC2MQTT.MQTT
             MessageReceivedString?.Invoke(e.Topic.ResultantTopic(false), Encoding.UTF8.GetString(e.Message));
         }
         */
-
-        public bool QueueMessage(MqttMessage message)
-        {
-            _messageQueue.Add(message);
-
-            return true;
-        }
-
-        public MqttMessage SendMessage(MqttMessage message) => ProcessMessage(message);
     }
 
     public class MqttSettings

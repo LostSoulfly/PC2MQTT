@@ -18,9 +18,36 @@ namespace PC2MQTT.Sensors
 
         private BadLogger.BadLogger Log;
 
-        public bool DidSensorCompile() => true;
+        public static string HumanReadableTimeSpan(double milliseconds)
+        {
+            if (milliseconds == 0) return "0 ms";
 
-        public bool IsCompatibleWithCurrentRuntime() => true;
+            StringBuilder sb = new StringBuilder();
+
+            Action<int, StringBuilder, int> addActionToSB =  //or pass an entire new format!
+            (val, displayunit, zeroplaces) =>
+            {
+                if (val > 0)
+                    sb.AppendFormat(
+            " {0:DZ}X".Replace("X", displayunit.ToString())
+            .Replace("Z", zeroplaces.ToString())
+            , val
+           );
+            };
+
+            var t = TimeSpan.FromMilliseconds(milliseconds);
+
+            //addActionToSBList(timespan property, readable display displayunit, number of zero placeholders) //Sun 24-Sep-17 8:30pm metadataconsulting.ca - Star Trek Disco
+            addActionToSB(t.Days, new StringBuilder("d"), 1);
+            addActionToSB(t.Hours, new StringBuilder("h"), 1);
+            addActionToSB(t.Minutes, new StringBuilder("m"), 2);
+            addActionToSB(t.Seconds, new StringBuilder("s"), 2);
+            addActionToSB(t.Milliseconds, new StringBuilder("ms"), 3);
+
+            return sb.ToString().TrimStart();
+        }
+
+        public bool DidSensorCompile() => true;
 
         public void Dispose()
         {
@@ -60,6 +87,8 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
+        public bool IsCompatibleWithCurrentRuntime() => true;
+
         public void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.GetRawTopic()}]");
@@ -77,42 +106,12 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public static string HumanReadableTimeSpan(double milliseconds)
-        {
-            if (milliseconds == 0) return "0 ms";
-
-            StringBuilder sb = new StringBuilder();
-
-            Action<int, StringBuilder, int> addActionToSB =  //or pass an entire new format!
-            (val, displayunit, zeroplaces) =>
-            {
-                if (val > 0)
-                    sb.AppendFormat(
-            " {0:DZ}X".Replace("X", displayunit.ToString())
-            .Replace("Z", zeroplaces.ToString())
-            , val
-           );
-            };
-
-            var t = TimeSpan.FromMilliseconds(milliseconds);
-
-            //addActionToSBList(timespan property, readable display displayunit, number of zero placeholders) //Sun 24-Sep-17 8:30pm metadataconsulting.ca - Star Trek Disco
-            addActionToSB(t.Days, new StringBuilder("d"), 1);
-            addActionToSB(t.Hours, new StringBuilder("h"), 1);
-            addActionToSB(t.Minutes, new StringBuilder("m"), 2);
-            addActionToSB(t.Seconds, new StringBuilder("s"), 2);
-            addActionToSB(t.Milliseconds, new StringBuilder("ms"), 3);
-
-            return sb.ToString().TrimStart();
-        }
-
         public void SensorMain()
         {
             Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
             //this.sensorHost.Subscribe("/uptime/get");
             //this.sensorHost.Subscribe("/uptime/current");
-
 
             var msg = MqttMessageBuilder.NewMessage().SubscribeMessage.AddDeviceIdToTopic.AddTopic("/uptime/").AddSingleLevelWildcard.DoNotRetain.Build();
             if (!sensorHost.Subscribe(msg))
@@ -123,7 +122,12 @@ namespace PC2MQTT.Sensors
             fiveSeconds = new Timer(15000);
             fiveSeconds.Elapsed += delegate { sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceIdToTopic.AddTopic("/uptime/get").DoNotRetain.Build()); };
 
-                fiveSeconds.Start();
+            fiveSeconds.Start();
+        }
+
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
         }
 
         public void Uninitialize()
@@ -137,10 +141,5 @@ namespace PC2MQTT.Sensors
 
         [DllImport("kernel32")]
         private static extern UInt64 GetTickCount64();
-
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
-        }
     }
 }

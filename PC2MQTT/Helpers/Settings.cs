@@ -17,18 +17,17 @@ namespace PC2MQTT.Helpers
         public bool logToConsole = true;
         public bool minimizeAtLaunch = true;
         public MqttSettings mqttSettings = new MqttSettings();
-        public bool useOnlyBuiltInSensors = true;
         public bool resubscribeOnReconnect = true;
         public ConcurrentDictionary<string, string> sensorData = new ConcurrentDictionary<string, string>();
-
+        public bool useOnlyBuiltInSensors = true;
     }
 
     public class Settings
     {
         public Config config;
         public string configFileName = "config.json";
-        System.Timers.Timer autoSaveTimer;
         public bool newDataToSave = false;
+        private System.Timers.Timer autoSaveTimer;
 
         public bool LoadSettings(string fileName = "")
         {
@@ -76,7 +75,8 @@ namespace PC2MQTT.Helpers
                 return;
 
             autoSaveTimer = new System.Timers.Timer(TimeSpan.FromMinutes(5).TotalMilliseconds);
-            autoSaveTimer.Elapsed += delegate {
+            autoSaveTimer.Elapsed += delegate
+            {
                 if (this.newDataToSave)
                     this.SaveSettings();
             };

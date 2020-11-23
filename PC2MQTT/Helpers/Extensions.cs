@@ -1,5 +1,4 @@
-﻿using PC2MQTT.MQTT;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 
@@ -38,48 +37,11 @@ namespace ExtensionMethods
             {
                 if (topic[0..deviceId.Length] == deviceId)
                     topic = topic[deviceId.Length..];
-
             }
 
             topic = topic.RemovePreSlash();
 
             return topic;
-        }
-
-        public static bool ValidateTopic(this string topic)
-        {
-
-            if (topic.Length == 0)
-                throw new System.Exception("Topic length is zero");
-
-            if (topic.Last() == '/')
-                throw new System.Exception("Topic has a trailing slash");
-
-            var t = topic.Split("/");
-
-                if (t.Contains("#") && t.Contains("+"))
-                    throw new System.Exception($"Topic contains multiple different wildcards");
-
-            for (int i = 0; i < t.Length; i++)
-            {
-
-                if (t[i].Length == 0)
-                    throw new System.Exception($"Topic section {i} length is zero");
-
-                if (t[i].Contains("+") && t[i].Contains("#"))
-                    throw new System.Exception($"Topic section {i} contains multiple wildcards");
-
-                if (t[i].Contains("+") && t[i].Length > 1)
-                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
-
-                if (t[i].Contains("#") && t[i].Length > 1)
-                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
-
-                if (t[i] == "#" && i != t.Length -1)
-                    throw new System.Exception($"Topic section {i} should be the last topic section in a # wildcard topic");
-            }
-
-            return true;
         }
 
         public static string RemovePreSlash(this string topic)
@@ -103,6 +65,40 @@ namespace ExtensionMethods
             return String.Format("{0:0.##} {1}", size, sizes[order]);
         }
 
+        public static bool ValidateTopic(this string topic)
+        {
+            if (topic.Length == 0)
+                throw new System.Exception("Topic length is zero");
+
+            if (topic.Last() == '/')
+                throw new System.Exception("Topic has a trailing slash");
+
+            var t = topic.Split("/");
+
+            if (t.Contains("#") && t.Contains("+"))
+                throw new System.Exception($"Topic contains multiple different wildcards");
+
+            for (int i = 0; i < t.Length; i++)
+            {
+                if (t[i].Length == 0)
+                    throw new System.Exception($"Topic section {i} length is zero");
+
+                if (t[i].Contains("+") && t[i].Contains("#"))
+                    throw new System.Exception($"Topic section {i} contains multiple wildcards");
+
+                if (t[i].Contains("+") && t[i].Length > 1)
+                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
+
+                if (t[i].Contains("#") && t[i].Length > 1)
+                    throw new System.Exception($"Topic section {i} contains more than just a single wildcard character");
+
+                if (t[i] == "#" && i != t.Length - 1)
+                    throw new System.Exception($"Topic section {i} should be the last topic section in a # wildcard topic");
+            }
+
+            return true;
+        }
+
         public static string WindowsShellResult(this string cmd)
         {
             var process = new Process()
@@ -121,6 +117,5 @@ namespace ExtensionMethods
             process.WaitForExit();
             return result;
         }
-
     }
 }

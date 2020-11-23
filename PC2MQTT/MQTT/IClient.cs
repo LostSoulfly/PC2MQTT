@@ -24,11 +24,11 @@
 
         public void MqttDisconnect();
 
+        public MqttMessage Publish(MqttMessage message);
+
         public bool QueueMessage(MqttMessage message);
 
         public MqttMessage SendMessage(MqttMessage message);
-
-        public MqttMessage Publish(MqttMessage message);
 
         public MqttMessage Subscribe(MqttMessage message);
 

@@ -1,6 +1,5 @@
 ﻿using BadLogger;
 using ExtensionMethods;
-using PC2MQTT.Helpers;
 using PC2MQTT.MQTT;
 using System;
 using System.Collections.Concurrent;
@@ -16,9 +15,8 @@ namespace PC2MQTT.Sensors
     public class SensorManager : IDisposable
     {
         public ConcurrentDictionary<string, SensorHost> sensors = new ConcurrentDictionary<string, SensorHost>();
-        private IClient _client;
-
         public Helpers.Settings settings;
+        private IClient _client;
         private BadLogger.BadLogger Log;
         private System.Timers.Timer sensorCleanupTimer;
         private ConcurrentDictionary<string, SensorHost> sensorMultiLevelWildcardTopics;
@@ -37,26 +35,6 @@ namespace PC2MQTT.Sensors
             sensorTopics = new ConcurrentDictionary<string, SensorHost>();
             sensorMultiLevelWildcardTopics = new ConcurrentDictionary<string, SensorHost>();
             sensorSingleLevelWildcardTopics = new ConcurrentDictionary<string, SensorHost>();
-        }
-
-        public void ReMapTopics()
-        {
-
-            foreach (var item in sensorTopics)
-            {
-                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.QueueMessage.AddTopic(item.Key).Build());
-            }
-
-            foreach (var item in sensorMultiLevelWildcardTopics)
-            {
-                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
-            }
-
-            foreach (var item in sensorSingleLevelWildcardTopics)
-            {
-                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
-            }
-
         }
 
         public void Dispose()
@@ -145,8 +123,8 @@ namespace PC2MQTT.Sensors
             try
             {
                 mqttMessage.GetRawTopic().ValidateTopic();
-
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Log.Debug($"Topic {mqttMessage.GetRawTopic()} validated false: {ex.Message}");
                 return false;
@@ -155,7 +133,6 @@ namespace PC2MQTT.Sensors
             if (mqttMessage.GetRawTopic().Contains("#")) // multi-level wildcard topic
             {
                 result = sensorMultiLevelWildcardTopics.TryAdd(mqttMessage.GetRawTopic(), sensorHost);
-
             }
             else if (mqttMessage.GetRawTopic().Contains("+"))// single level wildcard topic
             {
@@ -167,6 +144,18 @@ namespace PC2MQTT.Sensors
             }
 
             return result;
+        }
+
+        public void NotifySensorsServerStatus(ServerState state, ServerStateReason reason)
+        {
+            foreach (var item in sensors)
+            {
+                if (item.Value.IsCompiled && item.Value.sensor.IsInitialized)
+                {
+                    Log.Trace($"Notifying [{item.Value.SensorIdentifier}] of MQTT server status change");
+                    item.Value.sensor.ServerStateChange(state, reason);
+                }
+            }
         }
 
         public void ProcessMessage(MqttMessage mqttMessage)
@@ -193,10 +182,8 @@ namespace PC2MQTT.Sensors
                 bool wildcardFound = false;
                 for (int i = 0; i < wildcardTopic.Count(); i++)
                 {
-                    
                     if (!wildcardFound && i < wildcardTopic.Count())
                     {
-
                         if (wildcardTopic[i] == "#")
                             wildcardFound = true;
 
@@ -210,11 +197,8 @@ namespace PC2MQTT.Sensors
                         item.Value.sensor.ProcessMessage(mqttMessage);
                         return;
                     }
-
                 }
-
             }
-
 
             foreach (var item in sensorSingleLevelWildcardTopics)
             {
@@ -226,7 +210,6 @@ namespace PC2MQTT.Sensors
 
                 for (int i = 0; i < messageTopic.Count(); i++)
                 {
-
                     if ((messageTopic[i] != wildcardTopic[i]) && (wildcardTopic[i] != "+"))
                         break;
 
@@ -236,9 +219,25 @@ namespace PC2MQTT.Sensors
                         item.Value.sensor.ProcessMessage(mqttMessage);
                         return;
                     }
-
                 }
+            }
+        }
 
+        public void ReMapTopics()
+        {
+            foreach (var item in sensorTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.QueueMessage.AddTopic(item.Key).Build());
+            }
+
+            foreach (var item in sensorMultiLevelWildcardTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
+            }
+
+            foreach (var item in sensorSingleLevelWildcardTopics)
+            {
+                _client.Subscribe(new MqttMessageBuilder().SubscribeMessage.AddTopic(item.Key).Build());
             }
         }
 
@@ -250,7 +249,6 @@ namespace PC2MQTT.Sensors
             {
                 if (item.Value == sensorHost)
                 {
-
                     var mTopic = MqttMessageBuilder
                         .NewMessage()
                         .AddTopic(item.Key)
@@ -267,7 +265,6 @@ namespace PC2MQTT.Sensors
             {
                 if (item.Value == sensorHost)
                 {
-
                     var mMulti = MqttMessageBuilder
                         .NewMessage()
                         .AddTopic(item.Key)
@@ -285,7 +282,6 @@ namespace PC2MQTT.Sensors
             {
                 if (item.Value == sensorHost)
                 {
-                    
                     var mSingle = MqttMessageBuilder
                         .NewMessage()
                         .AddTopic(item.Key)
@@ -308,14 +304,12 @@ namespace PC2MQTT.Sensors
 
             if (mqttMessage.GetRawTopic().Contains("/#")) // multi-level wildcard topic
             {
-
-                    sensorMultiLevelWildcardTopics.TryRemove(mqttMessage.GetRawTopic().Replace("/#", ""), out var sMultiWild);
+                sensorMultiLevelWildcardTopics.TryRemove(mqttMessage.GetRawTopic().Replace("/#", ""), out var sMultiWild);
                 result = true;
             }
             else if (mqttMessage.GetRawTopic().Contains("/+")) // single level wildcard topic
             {
-
-                    sensorSingleLevelWildcardTopics.TryRemove(mqttMessage.GetRawTopic().Replace("/+", ""), out var sSingleWild);
+                sensorSingleLevelWildcardTopics.TryRemove(mqttMessage.GetRawTopic().Replace("/+", ""), out var sSingleWild);
                 result = true;
             }
             else
@@ -332,7 +326,6 @@ namespace PC2MQTT.Sensors
         internal List<string> LoadBuiltInSensors()
         {
             System.Reflection.Assembly ass = System.Reflection.Assembly.GetEntryAssembly();
-
 
             List<string> availableSensors = new List<string>();
 
@@ -358,7 +351,6 @@ namespace PC2MQTT.Sensors
             availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier).Where(ident => ident != null));
 
             return availableSensors;
-
         }
 
         internal void StartSensors()
@@ -409,7 +401,6 @@ namespace PC2MQTT.Sensors
         {
             Log.Trace("Starting a clean of uncompiled sensors");
 
-
             foreach (var item in sensors)
             {
                 if (!item.Value.IsCompiled || !item.Value.sensor.IsInitialized)
@@ -422,18 +413,6 @@ namespace PC2MQTT.Sensors
                     var after = System.GC.GetTotalMemory(true);
 
                     Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
-                }
-            }
-        }
-
-        public void NotifySensorsServerStatus(ServerState state, ServerStateReason reason)
-        {
-            foreach (var item in sensors)
-            {
-                if (item.Value.IsCompiled  && item.Value.sensor.IsInitialized)
-                {
-                    Log.Trace($"Notifying [{item.Value.SensorIdentifier}] of MQTT server status change");
-                    item.Value.sensor.ServerStateChange(state, reason);
                 }
             }
         }

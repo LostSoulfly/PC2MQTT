@@ -1,8 +1,6 @@
 ﻿using BadLogger;
-using ExtensionMethods;
 using System;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,11 +28,10 @@ namespace PC2MQTT.MQTT
         private static BadLogger.BadLogger Log;
         private readonly Random _random = new Random();
         private ushort _messageId = 0;
+        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
         private MqttSettings _mqttSettings;
 
         private CancellationTokenSource _queueCancellationTokenSource;
-
-        private BlockingCollection<MqttMessage> _messageQueue = new BlockingCollection<MqttMessage>(new ConcurrentQueue<MqttMessage>(), 500);
 
         public FakeClient(MqttSettings mqttSettings)
         {
@@ -66,66 +63,13 @@ namespace PC2MQTT.MQTT
 
             Task t;
             t = Task.Run(() => ProcessMessageQueue(), _queueCancellationTokenSource.Token);
-
         }
 
-        private void ProcessMessageQueue()
-        {
-            Log.Trace("Starting Message Queue Processing..");
-            while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
-            {
-                var msg = _messageQueue.Take();
-
-                Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
-                System.Threading.Thread.Sleep(GetRandom(500));
-                ProcessMessage(msg);
-            }
-        }
         public void MqttDisconnect()
         {
             System.Threading.Thread.Sleep(GetRandom());
             ConnectionClosed?.Invoke("Disconnected by MqttDisconnect", 99);
         }
-
-        public bool SometimesFalse()
-        {
-            if (!_mqttSettings.useFakeMqttFailures)
-                return true;
-
-            return _random.Next(0, 9) != 0;
-        }
-
-
-        public bool QueueMessage(MqttMessage message)
-        {
-            _messageQueue.Add(message);
-
-            return true;
-        }
-
-        private MqttMessage ProcessMessage(MqttMessage msg)
-        {
-            switch (msg.messageType)
-            {
-                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
-                    this.Publish(msg);
-                        //MessagePublished?.Invoke(msg);
-                    break;
-
-                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
-                    this.Subscribe(msg);
-                        //TopicSubscribed?.Invoke(msg);
-                    break;
-
-                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
-                    this.Unsubscribe(msg);
-                        //TopicUnsubscribed?.Invoke(msg);
-                    break;
-            }
-
-            return msg;
-        }
-
 
         public MqttMessage Publish(MqttMessage message)
         {
@@ -156,9 +100,28 @@ namespace PC2MQTT.MQTT
             return message;
         }
 
+        public bool QueueMessage(MqttMessage message)
+        {
+            _messageQueue.Add(message);
+
+            return true;
+        }
+
+        public MqttMessage SendMessage(MqttMessage message)
+        {
+            return ProcessMessage(message);
+        }
+
+        public bool SometimesFalse()
+        {
+            if (!_mqttSettings.useFakeMqttFailures)
+                return true;
+
+            return _random.Next(0, 9) != 0;
+        }
+
         public MqttMessage Subscribe(MqttMessage message)
         {
-
             //System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
@@ -188,13 +151,43 @@ namespace PC2MQTT.MQTT
                 TopicUnsubscribed?.Invoke(message);
             }
 
-
             return message;
         }
 
-        public MqttMessage SendMessage(MqttMessage message)
+        private MqttMessage ProcessMessage(MqttMessage msg)
         {
-            return ProcessMessage(message);
+            switch (msg.messageType)
+            {
+                case MqttMessage.MqttMessageType.MQTT_PUBLISH:
+                    this.Publish(msg);
+                    //MessagePublished?.Invoke(msg);
+                    break;
+
+                case MqttMessage.MqttMessageType.MQTT_SUBSCRIBE:
+                    this.Subscribe(msg);
+                    //TopicSubscribed?.Invoke(msg);
+                    break;
+
+                case MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE:
+                    this.Unsubscribe(msg);
+                    //TopicUnsubscribed?.Invoke(msg);
+                    break;
+            }
+
+            return msg;
+        }
+
+        private void ProcessMessageQueue()
+        {
+            Log.Trace("Starting Message Queue Processing..");
+            while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
+            {
+                var msg = _messageQueue.Take();
+
+                Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                System.Threading.Thread.Sleep(GetRandom(500));
+                ProcessMessage(msg);
+            }
         }
     }
 }

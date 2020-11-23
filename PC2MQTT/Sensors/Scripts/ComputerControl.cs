@@ -1,8 +1,6 @@
 using BadLogger;
 using PC2MQTT.MQTT;
 using System;
-using System.Timers;
-using static PC2MQTT.MQTT.MqttMessage;
 
 namespace PC2MQTT.Sensors
 {
@@ -27,7 +25,6 @@ namespace PC2MQTT.Sensors
 
         public bool Initialize(SensorHost sensorHost)
         {
-
             Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
 
             this.sensorHost = sensorHost;
@@ -37,6 +34,18 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
+        public bool IsCompatibleWithCurrentRuntime()
+        {
+            bool compatible = true;
+
+            if (CSScriptLib.Runtime.IsCore) compatible = true;
+            if (CSScriptLib.Runtime.IsLinux) compatible = true;
+            if (CSScriptLib.Runtime.IsMono) compatible = false;
+            if (CSScriptLib.Runtime.IsNet) compatible = true;
+            if (CSScriptLib.Runtime.IsWin) compatible = true;
+
+            return compatible;
+        }
 
         public void ProcessMessage(MqttMessage mqttMessage)
         {
@@ -51,6 +60,49 @@ namespace PC2MQTT.Sensors
                 HandleCommand(topic, mqttMessage.message);
             else
                 Log.Info($"[ProcessMessage] Unknown topic [{mqttMessage.GetRawTopic()}]");
+        }
+
+        public void SensorMain()
+        {
+            Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
+            sensorHost.Subscribe(MqttMessageBuilder.
+                NewMessage().
+                AddDeviceIdToTopic.
+                SubscribeMessage.
+                AddTopic("computer").
+                AddMultiLevelWildcard.
+                DoNotRetain.
+                QueueMessage.
+                Build());
+
+            while (this.IsInitialized)
+            {
+                //Log.Info("If you want, you can stay in control for the life of the sensor using something like this.");
+                System.Threading.Thread.Sleep(10000);
+                sensorHost.Publish(MqttMessageBuilder.
+                NewMessage().
+                AddDeviceIdToTopic.
+                PublishMessage.
+                AddTopic("computer").
+                AddTopic("shutdown").
+                DoNotRetain.
+                QueueMessage.
+                Build());
+            }
+        }
+
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
+        }
+
+        public void Uninitialize()
+        {
+            if (IsInitialized)
+            {
+                Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
+            }
         }
 
         private void HandleCommand(string[] command, string message)
@@ -96,72 +148,9 @@ namespace PC2MQTT.Sensors
                 case "uptime":
                     break;
 
-
-
                 default:
                     break;
             }
-        }
-
-        public void SensorMain()
-        {
-            Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-
-            sensorHost.Subscribe(MqttMessageBuilder.
-                NewMessage().
-                AddDeviceIdToTopic.
-                SubscribeMessage.
-                AddTopic("computer").
-                AddMultiLevelWildcard.
-                DoNotRetain.
-                QueueMessage.
-                Build());
-
-            while (this.IsInitialized)
-            {
-                //Log.Info("If you want, you can stay in control for the life of the sensor using something like this.");
-                System.Threading.Thread.Sleep(10000);
-                sensorHost.Publish(MqttMessageBuilder.
-                NewMessage().
-                AddDeviceIdToTopic.
-                PublishMessage.
-                AddTopic("computer").
-                AddTopic("shutdown").
-                DoNotRetain.
-                QueueMessage.
-                Build());
-            }
-        }
-
-
-        public void Uninitialize()
-        {
-
-            if (IsInitialized)
-            {
-                Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
-
-            }
-        }
-
-        public bool IsCompatibleWithCurrentRuntime()
-        {
-
-            bool compatible = true;
-
-
-            if (CSScriptLib.Runtime.IsCore) compatible = true;
-            if (CSScriptLib.Runtime.IsLinux) compatible = true;
-            if (CSScriptLib.Runtime.IsMono) compatible = false;
-            if (CSScriptLib.Runtime.IsNet) compatible = true;
-            if (CSScriptLib.Runtime.IsWin) compatible = true;
-
-            return compatible;
-        }
-
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
         }
     }
 }

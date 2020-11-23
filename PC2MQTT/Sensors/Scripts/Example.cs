@@ -3,7 +3,6 @@ using PC2MQTT.MQTT;
 using System;
 using System.Collections.Generic;
 using System.Timers;
-using static PC2MQTT.MQTT.MqttMessage;
 
 // Namespaces aren't allowed, so either remove this (and its {} brackets) or leave it alone
 // PC2MQTT attempts to remove namespaces automatically before compiling the sensor script
@@ -55,12 +54,11 @@ namespace PC2MQTT.Sensors
 
             Log.Debug($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
             Log.Debug($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
-            
+
             // Initialize needs to return true relatively quickly but you can stall for a while or run processor-intensive things beforehand.
             // Control is returned to the sensor in SensorMain after initialization is complete.
             Log.Info($"We're not done initializing yet.. just a bit longer..");
             System.Threading.Thread.Sleep(2000);
-
 
             // You can save and load data types that NewtonsoftJson can handle using built-in Save/Load features shown below
             // Note that this data is only saved every 5 minutes or if the program gracefully shuts down!
@@ -95,7 +93,7 @@ namespace PC2MQTT.Sensors
             // Load it again. Note that we're setting global = false but it's not necessary.
             // You can store global objects for use in other sensors with global = true
             // For this data, however, we need to pass the type otherwise it returns a JArray.
-            List<string> resultList = sensorHost.LoadData("testList", global: false , type: typeof(List<string>));
+            List<string> resultList = sensorHost.LoadData("testList", global: false, type: typeof(List<string>));
 
             Log.Debug($"Load Data [testList] result: Count:{resultList.Count}  [{String.Join(" ", resultList)}]");
 
@@ -107,6 +105,21 @@ namespace PC2MQTT.Sensors
             // Just make sure to clean up after yourself as best you can.
             // uninitialized sensors are cleaned up automatically after all sensors are done loading.
             return true;
+        }
+
+        public bool IsCompatibleWithCurrentRuntime()
+        {
+            // Simple way to set compatibility..
+            bool compatible = true;
+
+            // If incompatible with a specific OS/Runtime, set that one below to false and remove all the others that your sensor runs on
+            if (CSScriptLib.Runtime.IsCore) compatible = true;
+            if (CSScriptLib.Runtime.IsLinux) compatible = true;
+            if (CSScriptLib.Runtime.IsMono) compatible = true;
+            if (CSScriptLib.Runtime.IsNet) compatible = true;
+            if (CSScriptLib.Runtime.IsWin) compatible = true;
+
+            return compatible;
         }
 
         // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
@@ -146,7 +159,6 @@ namespace PC2MQTT.Sensors
             if (!sensorHost.Subscribe(msg))
                 Log.Info("Failed to subscribe to /example2/#");
 
-
             var msg2 = MqttMessageBuilder
                 .NewMessage()
                 .PublishMessage
@@ -183,7 +195,6 @@ namespace PC2MQTT.Sensors
 
             sensorHost.Publish(new MqttMessageBuilder().PublishMessage.AddDeviceId.AddTopic("/example3/test").SetMessage("4").Build());
 
-            
             sensorHost.Publish(MqttMessageBuilder
                 .NewMessage()
                 .PublishMessage
@@ -192,7 +203,6 @@ namespace PC2MQTT.Sensors
                 .SetMessage("5")
                 .DoNotRetain
                 .Build());
-            
 
             Log.Info("In 10 seconds I will send an unload message to /example2/unload_example_script");
 
@@ -226,6 +236,11 @@ namespace PC2MQTT.Sensors
             }
         }
 
+        public void ServerStateChange(ServerState state, ServerStateReason reason)
+        {
+            Log.Debug($"ServerStateChange: {state}: {reason}");
+        }
+
         // This is called when the Sensor is being uninitialized.
         public void Uninitialize()
         {
@@ -242,26 +257,6 @@ namespace PC2MQTT.Sensors
                 // stop our timer to prevent any issues!
                 if (unloadTimer != null) unloadTimer.Stop();
             }
-        }
-
-        public bool IsCompatibleWithCurrentRuntime()
-        {
-            // Simple way to set compatibility..
-            bool compatible = true;
-
-            // If incompatible with a specific OS/Runtime, set that one below to false and remove all the others that your sensor runs on
-            if (CSScriptLib.Runtime.IsCore) compatible = true;
-            if (CSScriptLib.Runtime.IsLinux) compatible = true;
-            if (CSScriptLib.Runtime.IsMono) compatible = true;
-            if (CSScriptLib.Runtime.IsNet) compatible = true;
-            if (CSScriptLib.Runtime.IsWin) compatible = true;
-
-            return compatible;
-        }
-
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
         }
     }
 }

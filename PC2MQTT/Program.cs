@@ -5,18 +5,24 @@ using PC2MQTT.Sensors;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PC2MQTT
 {
     internal class Program
     {
         public static readonly string Version = "0.1.0-dev";
+        private static readonly AutoResetEvent _closing = new AutoResetEvent(false);
         private static IClient client;
+        private static bool disconnectedUnexpectedly = false;
         private static BadLogger.BadLogger Log;
         private static SensorManager sensorManager;
         private static Settings settings = new Settings();
-        private static bool disconnectedUnexpectedly = false;
+
+        protected static void OnExit(object sender, ConsoleCancelEventArgs args)
+        {
+            args.Cancel = true;
+            _closing.Set();
+        }
 
         private static void Client_ConnectionClosed(string reason, byte errorCode)
         {
@@ -40,6 +46,29 @@ namespace PC2MQTT
             }
         }
 
+        private static void Client_MessagePublished(MqttMessage mqttMessage)
+        {
+            Log.Trace($"Message published for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            //throw new NotImplementedException();
+        }
+
+        private static void Client_MessageReceivedString(MqttMessage mqttMessage)
+        {
+            Log.Trace($"Message received for [{mqttMessage.GetTopicWithoutDeviceId()}]: {mqttMessage.message}");
+            sensorManager.ProcessMessage(mqttMessage);
+        }
+
+        private static void Client_TopicSubscribed(MqttMessage mqttMessage)
+        {
+            Log.Trace($"Topic subscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            //throw new NotImplementedException();
+        }
+
+        private static void Client_TopicUnsubscribed(MqttMessage mqttMessage)
+        {
+            Log.Trace($"Topic Unsubscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            //throw new NotImplementedException();
+        }
 
         private static void InitializeExtensions()
         {
@@ -71,31 +100,6 @@ namespace PC2MQTT
             client.MqttConnect();
         }
 
-        private static void Client_MessagePublished(MqttMessage mqttMessage)
-        {
-            Log.Trace($"Message published for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
-            //throw new NotImplementedException();
-        }
-
-        private static void Client_TopicSubscribed(MqttMessage mqttMessage)
-        {
-            Log.Trace($"Topic subscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
-            //throw new NotImplementedException();
-        }
-
-        private static void Client_TopicUnsubscribed(MqttMessage mqttMessage)
-        {
-
-            Log.Trace($"Topic Unsubscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
-            //throw new NotImplementedException();
-        }
-
-        private static void Client_MessageReceivedString(MqttMessage mqttMessage)
-        {
-            Log.Trace($"Message received for [{mqttMessage.GetTopicWithoutDeviceId()}]: {mqttMessage.message}");
-            sensorManager.ProcessMessage(mqttMessage);
-        }
-
         private static void InitializeSensors(bool useOnlyBuiltInSensors = true)
         {
             sensorManager = new SensorManager(client, settings);
@@ -111,7 +115,6 @@ namespace PC2MQTT
                 foreach (var item in sensorManager.LoadBuiltInSensors())
                     if (!available.Contains(item))
                         available.Add(item);
-
             }
             else
             {
@@ -138,8 +141,6 @@ namespace PC2MQTT
                 Environment.Exit(0);
             }
         }
-
-        private static readonly AutoResetEvent _closing = new AutoResetEvent(false);
 
         private static void Main(string[] args)
         {
@@ -169,11 +170,6 @@ namespace PC2MQTT
 
             settings.SaveSettings();
             Environment.Exit(0);
-        }
-        protected static void OnExit(object sender, ConsoleCancelEventArgs args)
-        {
-            args.Cancel = true;
-            _closing.Set();
         }
     }
 }

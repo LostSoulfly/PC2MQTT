@@ -7,8 +7,6 @@ namespace PC2MQTT.Sensors
     {
         public bool IsInitialized { get; set; }
 
-        public bool IsCompatibleWithCurrentRuntime();
-
         public SensorHost sensorHost { get; set; }
 
         public bool DidSensorCompile();
@@ -17,13 +15,15 @@ namespace PC2MQTT.Sensors
 
         public bool Initialize(SensorHost sensorInfo);
 
+        public bool IsCompatibleWithCurrentRuntime();
+
         public void ProcessMessage(MqttMessage mqttMessage);
 
         public void SensorMain();
 
-        public void Uninitialize();
-
         public void ServerStateChange(ServerState state, ServerStateReason reason);
+
+        public void Uninitialize();
     }
 
     public enum ServerState

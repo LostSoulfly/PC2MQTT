@@ -1,26 +1,59 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
+﻿using System.Diagnostics;
 using static PC2MQTT.MQTT.MqttMessage;
 
 namespace PC2MQTT.MQTT
 {
     public class MqttMessageBuilder
     {
-        private MqttMessage _mqttMessage;
-
-        public MqttMessageBuilder()
+        /// <summary>
+        /// Shorthand version of AddDeviceIdToTopic.
+        /// </summary>
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        public MqttMessageBuilder AddDeviceId
         {
-            _mqttMessage = new MqttMessage();
+            get
+            {
+                _mqttMessage.AddDeviceIdToTopic();
+                return this;
+            }
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder SubscribeMessage 
-        { 
+        public MqttMessageBuilder AddDeviceIdToTopic
+        {
             get
             {
-                _mqttMessage.messageType = MqttMessageType.MQTT_SUBSCRIBE;
+                _mqttMessage.AddDeviceIdToTopic();
+                return this;
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        public MqttMessageBuilder AddMultiLevelWildcard
+        {
+            get
+            {
+                _mqttMessage.AddTopic("#");
+                return this;
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        public MqttMessageBuilder AddSingleLevelWildcard
+        {
+            get
+            {
+                _mqttMessage.AddTopic("+");
+                return this;
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        public MqttMessageBuilder DoNotRetain
+        {
+            get
+            {
+                _mqttMessage.retain = false;
                 return this;
             }
         }
@@ -36,11 +69,11 @@ namespace PC2MQTT.MQTT
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder UnsubscribeMessage
+        public MqttMessageBuilder QueueMessage
         {
             get
             {
-                _mqttMessage.messageType = MqttMessageType.MQTT_UNSUBSCRIBE;
+                _mqttMessage.sendImmediately = false;
                 return this;
             }
         }
@@ -66,40 +99,6 @@ namespace PC2MQTT.MQTT
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder DoNotRetain
-        {
-            get
-            {
-                _mqttMessage.retain = false;
-                return this;
-            }
-        }
-
-
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder AddDeviceIdToTopic
-        {
-            get
-            {
-                _mqttMessage.AddDeviceIdToTopic();
-                return this;
-            }
-        }
-
-        /// <summary>
-        /// Shorthand version of AddDeviceIdToTopic.
-        /// </summary>
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder AddDeviceId
-        {
-            get
-            {
-                _mqttMessage.AddDeviceIdToTopic();
-                return this;
-            }
-        }
-
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder SendImmediately
         {
             get
@@ -110,33 +109,30 @@ namespace PC2MQTT.MQTT
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder QueueMessage
+        public MqttMessageBuilder SubscribeMessage
         {
             get
             {
-                _mqttMessage.sendImmediately = false;
+                _mqttMessage.messageType = MqttMessageType.MQTT_SUBSCRIBE;
                 return this;
             }
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder AddSingleLevelWildcard
+        public MqttMessageBuilder UnsubscribeMessage
         {
             get
             {
-                _mqttMessage.AddTopic("+");
+                _mqttMessage.messageType = MqttMessageType.MQTT_UNSUBSCRIBE;
                 return this;
             }
         }
 
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public MqttMessageBuilder AddMultiLevelWildcard
+        private MqttMessage _mqttMessage;
+
+        public MqttMessageBuilder()
         {
-            get
-            {
-                _mqttMessage.AddTopic("#");
-                return this;
-            }
+            _mqttMessage = new MqttMessage();
         }
 
         public static MqttMessageBuilder NewMessage()
@@ -144,16 +140,15 @@ namespace PC2MQTT.MQTT
             return new MqttMessageBuilder();
         }
 
+        public MqttMessageBuilder AddTopic(string topic)
+        {
+            _mqttMessage.AddTopic(topic);
+            return this;
+        }
+
         public MqttMessage Build()
         {
             return _mqttMessage;
-        }
-
-        public MqttMessageBuilder AddTopic(string topic)
-        {
-
-            _mqttMessage.AddTopic(topic);
-            return this;
         }
 
         public MqttMessageBuilder SetMessage(string message)
@@ -164,12 +159,8 @@ namespace PC2MQTT.MQTT
 
         public MqttMessageBuilder SetMessageType(MqttMessageType messageType)
         {
-
             _mqttMessage.messageType = messageType;
             return this;
         }
-
-
-
     }
 }

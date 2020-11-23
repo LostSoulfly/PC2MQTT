@@ -1,6 +1,5 @@
 ﻿using BadLogger;
 using CSScriptLib;
-using ExtensionMethods;
 using PC2MQTT.MQTT;
 using System;
 using System.IO;
@@ -75,7 +74,6 @@ namespace PC2MQTT.Sensors
             _sensorManager.UnmapAlltopics(this);
             try
             {
-
                 if (sensor != null && sensor.IsInitialized)
                 {
                     UninitializeSensor();
@@ -104,6 +102,33 @@ namespace PC2MQTT.Sensors
                 return false;
 
             return sensor.IsInitialized;
+        }
+
+        public dynamic LoadData(string name, Object defaultData = null, bool global = false, Type type = null)
+        {
+            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
+
+            Log.Debug($"Loading [{name}] for {this.SensorIdentifier}.");
+
+            if (_sensorManager.settings.config.sensorData.TryGetValue(identifier, out var data))
+            {
+                var obj = Newtonsoft.Json.JsonConvert.DeserializeObject(data, type);
+                return obj;
+            }
+            else
+            {
+                if (defaultData == null)
+                {
+                    Log.Warn($"Failed to load [{name}] for {this.SensorIdentifier}.");
+                }
+                else
+                {
+                    SaveData(name, defaultData, false, global);
+                    return LoadData(name, null, global, type);
+                }
+            }
+
+            return data;
         }
 
         public void LoadFromFile(string filePath, bool compile = true)
@@ -143,36 +168,62 @@ namespace PC2MQTT.Sensors
             return false;
         }
 
-        public void UninitializeSensor()
+        public bool SaveData(string name, Object data, bool overWrite = true, bool global = false)
         {
-            if (sensor != null && IsCompiled && sensor.IsInitialized)
+            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
+
+            Log.Debug($"Saving [{name}] for {this.SensorIdentifier}.");
+
+            var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(data);
+
+            try
             {
-                sensor.Uninitialize();
-                sensor.IsInitialized = false;
+                bool exists = _sensorManager.settings.config.sensorData.ContainsKey(identifier);
+
+                if (overWrite && exists)
+                    _sensorManager.settings.config.sensorData.TryRemove(identifier, out var o);
+
+                if (exists && !overWrite)
+                {
+                    Log.Warn($"Failed to save [{name}] for {this.SensorIdentifier}: overWrite is false.");
+                    return false;
+                }
+
+                var saved = _sensorManager.settings.config.sensorData.TryAdd(identifier, serialized);
+
+                _sensorManager.settings.newDataToSave = true;
+
+                return saved;
             }
+            catch { }
+
+            return true;
         }
 
-        public bool Unsubscribe(MqttMessage mqttMessage)
+        public bool SendMessage(MqttMessage mqttMessage) => SendMqttMessage(mqttMessage);
+
+        public bool SendMqttMessage(MqttMessage mqttMessage)
         {
             if (_client == null)
                 return false;
 
-
-            mqttMessage.SetMessageType(MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE);
+            if (mqttMessage.messageType == MqttMessage.MqttMessageType.MQTT_NONE)
+                return false;
 
             if (!mqttMessage.sendImmediately)
             {
-                _client.QueueMessage(mqttMessage.UnsubscribeMessage);
-                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
+                _client.QueueMessage(mqttMessage);
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
                 return true;
             }
 
-            var success = _client.Unsubscribe(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
+            var success = _client.SendMessage(mqttMessage);
+            Log.Trace($"[{SensorIdentifier}] sending message for [{mqttMessage.GetRawTopic()}]");
 
             if (success.messageId > 0)
             {
-                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
+                _sensorManager.MapTopicToSensor(mqttMessage, this);
+
                 return true;
             }
 
@@ -212,31 +263,35 @@ namespace PC2MQTT.Sensors
             return false;
         }
 
+        public void UninitializeSensor()
+        {
+            if (sensor != null && IsCompiled && sensor.IsInitialized)
+            {
+                sensor.Uninitialize();
+                sensor.IsInitialized = false;
+            }
+        }
 
-        public bool SendMessage(MqttMessage mqttMessage) => SendMqttMessage(mqttMessage);
-
-        public bool SendMqttMessage(MqttMessage mqttMessage)
+        public bool Unsubscribe(MqttMessage mqttMessage)
         {
             if (_client == null)
                 return false;
 
-            if (mqttMessage.messageType == MqttMessage.MqttMessageType.MQTT_NONE)
-                return false;
+            mqttMessage.SetMessageType(MqttMessage.MqttMessageType.MQTT_UNSUBSCRIBE);
 
             if (!mqttMessage.sendImmediately)
             {
-                _client.QueueMessage(mqttMessage);
-                _sensorManager.MapTopicToSensor(mqttMessage, this);
+                _client.QueueMessage(mqttMessage.UnsubscribeMessage);
+                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
                 return true;
             }
 
-            var success = _client.SendMessage(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] sending message for [{mqttMessage.GetRawTopic()}]");
+            var success = _client.Unsubscribe(mqttMessage);
+            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
 
             if (success.messageId > 0)
             {
-                _sensorManager.MapTopicToSensor(mqttMessage, this);
-
+                _sensorManager.UnmapTopicToSensor(mqttMessage, this);
                 return true;
             }
 
@@ -293,68 +348,6 @@ namespace PC2MQTT.Sensors
                     SensorIdentifier = sensor.GetSensorIdentifier().ToLower();
             }
             catch (Exception ex) { GetLastError = ex.Message; return; }
-        }
-
-        public dynamic LoadData(string name, Object defaultData = null, bool global = false, Type type = null)
-        {
-
-            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
-
-            Log.Debug($"Loading [{name}] for {this.SensorIdentifier}.");
-
-            if (_sensorManager.settings.config.sensorData.TryGetValue(identifier, out var data))
-            {
-                var obj = Newtonsoft.Json.JsonConvert.DeserializeObject(data, type);
-                return obj;
-            } else
-            {
-                if (defaultData == null)
-                {
-                    Log.Warn($"Failed to load [{name}] for {this.SensorIdentifier}.");
-                }
-                else
-                {
-                    SaveData(name, defaultData, false, global);
-                    return LoadData(name, null, global, type);
-                }
-            }
-
-            return data;
-        }
-
-        public bool SaveData(string name, Object data, bool overWrite = true, bool global = false)
-        {
-
-            string identifier = !global ? this.SensorIdentifier + "-" + name : "global-" + name;
-
-            Log.Debug($"Saving [{name}] for {this.SensorIdentifier}.");
-
-            var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(data);
-
-            try
-            {
-
-                bool exists = _sensorManager.settings.config.sensorData.ContainsKey(identifier);
-
-                if (overWrite && exists)
-                    _sensorManager.settings.config.sensorData.TryRemove(identifier, out var o);
-
-                if (exists && !overWrite)
-                {
-                    Log.Warn($"Failed to save [{name}] for {this.SensorIdentifier}: overWrite is false.");
-                    return false;
-                }
-
-                var saved = _sensorManager.settings.config.sensorData.TryAdd(identifier, serialized);
-
-                _sensorManager.settings.newDataToSave = true;
-
-                return saved;
-            }
-            catch { }
-
-
-            return true;
         }
     }
 }
