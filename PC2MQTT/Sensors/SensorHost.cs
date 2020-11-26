@@ -337,11 +337,14 @@ namespace PC2MQTT.Sensors
             {
                 this.sensor = CSScript.RoslynEvaluator
                     .ReferenceAssembliesFromCode(code)
+                    .ReferenceAssemblyByNamespace("BadLogger")
                     .ReferenceAssembly(Assembly.GetExecutingAssembly())
                     .ReferenceAssembly(Assembly.GetExecutingAssembly().Location)
                     .LoadCode<ISensor>(code);
 
-                if (sensor.IsCompatibleWithCurrentRuntime() && sensor.DidSensorCompile())
+                if (sensor.DidSensorCompile() == false || sensor.IsCompatibleWithCurrentRuntime() == false)
+                    IsCompiled = false;
+                else
                     IsCompiled = true;
 
                 if (IsCompiled)

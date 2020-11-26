@@ -8,17 +8,11 @@ using System.Timers;
 
 namespace PC2MQTT.Sensors
 {
-    public class Uptime : PC2MQTT.Sensors.ISensor
+    public class Uptime : SensorBase, PC2MQTT.Sensors.ISensor
     {
-        public bool IsInitialized { get; set; }
-
-        public SensorHost sensorHost { get; set; }
-
         private Timer fiveSeconds;
 
-        private BadLogger.BadLogger Log;
-
-        public static string HumanReadableTimeSpan(double milliseconds)
+        private static string HumanReadableTimeSpan(double milliseconds)
         {
             if (milliseconds == 0) return "0 ms";
 
@@ -47,9 +41,7 @@ namespace PC2MQTT.Sensors
             return sb.ToString().TrimStart();
         }
 
-        public bool DidSensorCompile() => true;
-
-        public void Dispose()
+        public new void Dispose()
         {
             Log.Debug($"Disposing [{GetSensorIdentifier()}]");
             Log = null;
@@ -57,9 +49,7 @@ namespace PC2MQTT.Sensors
             sensorHost = null;
         }
 
-        public string GetSensorIdentifier() => this.GetType().Name;
-
-        public TimeSpan GetUpTime()
+        private TimeSpan GetUpTime()
         {
             if (CSScriptLib.Runtime.IsLinux || CSScriptLib.Runtime.IsMono)
             {
@@ -79,17 +69,7 @@ namespace PC2MQTT.Sensors
             return TimeSpan.MinValue;
         }
 
-        public bool Initialize(SensorHost sensorHost)
-        {
-            Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
-            this.sensorHost = sensorHost;
-
-            return true;
-        }
-
-        public bool IsCompatibleWithCurrentRuntime() => true;
-
-        public void ProcessMessage(MqttMessage mqttMessage)
+        public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Debug($"[{GetSensorIdentifier()}] Processing topic [{mqttMessage.GetRawTopic()}]");
 
@@ -106,7 +86,7 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public void SensorMain()
+        public new void SensorMain()
         {
             Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
@@ -125,12 +105,7 @@ namespace PC2MQTT.Sensors
             fiveSeconds.Start();
         }
 
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
-        }
-
-        public void Uninitialize()
+        public new void Uninitialize()
         {
             if (fiveSeconds != null)
             {

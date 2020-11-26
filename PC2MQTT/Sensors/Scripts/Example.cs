@@ -1,4 +1,6 @@
-﻿using BadLogger;
+﻿//css_ref BadLogger
+
+using BadLogger;
 using PC2MQTT.MQTT;
 using System;
 using System.Collections.Generic;
@@ -8,43 +10,14 @@ using System.Timers;
 // PC2MQTT attempts to remove namespaces automatically before compiling the sensor script
 namespace PC2MQTT.Sensors
 {
-    // Change "Example" to whatever you want your Sensor to be. It should still inherit from ISensor!
-    public class Example : PC2MQTT.Sensors.ISensor
+    // Change "Example" to whatever you want your Sensor to be.
+    /// <inheritdoc/>
+    public class Example : SensorBase, PC2MQTT.Sensors.ISensor
     {
-        // If we've finished initializing. Set this to true before returning from Initialize() below.
-        public bool IsInitialized { get; set; }
-
-        // Save this from the Initialize entrypoint, passed from the parent sensorHost
-        public SensorHost sensorHost { get; set; }
-
-        // BadLogger from PC2MQTT so we can pass log messages, not required
-        private BadLogger.BadLogger Log;
-
         // An example timer, see more below in SensorMain()
         private Timer unloadTimer;
 
-        // This should always return true. This is a simple test to see if the sensor was loaded properly
-        public bool DidSensorCompile() => true;
-
-        // You can call this directly if you want to stop and unload the sensor
-        // but PC2MQTT will also call this if the sensor is not marked IsInitialized = true
-        // Note: Cleanup is only enabled after all sensors have initialized
-        public void Dispose()
-        {
-            Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            unloadTimer = null;
-            GC.SuppressFinalize(this);
-        }
-
-        // Should return "Example" (this class's name). You can specify it here as a string manually, though if you want
-        public string GetSensorIdentifier() => this.GetType().Name;
-
-        // This is called by PC2MQTT after compiling the sensor. Do your, ugh, initialization stuff here.
-        // Load any databases, connect to any services, spin up any servers, etc.
-        // Control will be returned to the sensor in SensorMain after all sensors have loaded.
-        // Note that sensor scripts are non-blocking so other scripts will run as well, but if you take too long without
-        // returning here your sensor will be disposed because it did not initialize in a timely manner.
-        public bool Initialize(SensorHost sensorHost)
+        public new bool Initialize(SensorHost sensorHost)
         {
             // Initialize BadLogger so we can pass log messages, not required
             Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
@@ -107,7 +80,7 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
-        public bool IsCompatibleWithCurrentRuntime()
+        public new bool IsCompatibleWithCurrentRuntime()
         {
             // Simple way to set compatibility..
             bool compatible = true;
@@ -122,8 +95,7 @@ namespace PC2MQTT.Sensors
             return compatible;
         }
 
-        // This is called by PC2MQTT when a topic this Sensor has subscribed to has received a message
-        public void ProcessMessage(MqttMessage mqttMessage)
+        public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Info($"[ProcessMessage] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
 
@@ -138,7 +110,7 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public void SensorMain()
+        public new void SensorMain()
         {
             // We should be in our own thread. Hopefully. I'm still new to threading..
             Log.Debug($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
@@ -236,13 +208,7 @@ namespace PC2MQTT.Sensors
             }
         }
 
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
-        }
-
-        // This is called when the Sensor is being uninitialized.
-        public void Uninitialize()
+        public new void Uninitialize()
         {
             // Best to check if it's already been initialized as it may get called a few times to be safe.
             if (IsInitialized)

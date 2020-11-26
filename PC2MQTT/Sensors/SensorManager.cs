@@ -245,7 +245,7 @@ namespace PC2MQTT.Sensors
 
             foreach (var item in sensorTopics)
             {
-                if (item.Value == sensorHost)
+                if (item.Value == sensorHost && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                 {
                     var mTopic = MqttMessageBuilder
                         .NewMessage()
@@ -261,7 +261,7 @@ namespace PC2MQTT.Sensors
 
             foreach (var item in sensorMultiLevelWildcardTopics)
             {
-                if (item.Value == sensorHost)
+                if (item.Value == sensorHost && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                 {
                     var mMulti = MqttMessageBuilder
                         .NewMessage()
@@ -278,7 +278,7 @@ namespace PC2MQTT.Sensors
 
             foreach (var item in sensorSingleLevelWildcardTopics)
             {
-                if (item.Value == sensorHost)
+                if (item.Value == sensorHost && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                 {
                     var mSingle = MqttMessageBuilder
                         .NewMessage()

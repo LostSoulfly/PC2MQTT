@@ -4,50 +4,10 @@ using System;
 
 namespace PC2MQTT.Sensors
 {
-    public class ComputerControl : PC2MQTT.Sensors.ISensor
+    public class ComputerControl : SensorBase, PC2MQTT.Sensors.ISensor
     {
-        public bool IsInitialized { get; set; }
 
-        public SensorHost sensorHost { get; set; }
-
-        private BadLogger.BadLogger Log;
-
-        public bool DidSensorCompile() => true;
-
-        public void Dispose()
-        {
-            if (IsInitialized)
-                Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            GC.SuppressFinalize(this);
-        }
-
-        public string GetSensorIdentifier() => this.GetType().Name;
-
-        public bool Initialize(SensorHost sensorHost)
-        {
-            Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
-
-            this.sensorHost = sensorHost;
-
-            Log.Info($"Finishing initialization in {this.GetSensorIdentifier()}");
-
-            return true;
-        }
-
-        public bool IsCompatibleWithCurrentRuntime()
-        {
-            bool compatible = true;
-
-            if (CSScriptLib.Runtime.IsCore) compatible = true;
-            if (CSScriptLib.Runtime.IsLinux) compatible = true;
-            if (CSScriptLib.Runtime.IsMono) compatible = false;
-            if (CSScriptLib.Runtime.IsNet) compatible = true;
-            if (CSScriptLib.Runtime.IsWin) compatible = true;
-
-            return compatible;
-        }
-
-        public void ProcessMessage(MqttMessage mqttMessage)
+        public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Info($"[ProcessMessage] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
 
@@ -62,7 +22,7 @@ namespace PC2MQTT.Sensors
                 Log.Info($"[ProcessMessage] Unknown topic [{mqttMessage.GetRawTopic()}]");
         }
 
-        public void SensorMain()
+        public new void SensorMain()
         {
             Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
@@ -89,19 +49,6 @@ namespace PC2MQTT.Sensors
                 DoNotRetain.
                 QueueMessage.
                 Build());
-            }
-        }
-
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
-        }
-
-        public void Uninitialize()
-        {
-            if (IsInitialized)
-            {
-                Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
             }
         }
 

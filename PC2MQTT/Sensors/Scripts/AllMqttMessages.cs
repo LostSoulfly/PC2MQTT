@@ -5,27 +5,11 @@ using System.Collections.Concurrent;
 
 namespace PC2MQTT.Sensors
 {
-    public class AllMqttMessages : PC2MQTT.Sensors.ISensor
+    public partial class AllMqttMessages : SensorBase, PC2MQTT.Sensors.ISensor
     {
-        public bool IsInitialized { get; set; }
-
-        public SensorHost sensorHost { get; set; }
-
         private ConcurrentDictionary<string, string> _cars = new ConcurrentDictionary<string, string>();
-        private BadLogger.BadLogger Log;
 
-        public bool DidSensorCompile() => true;
-
-        public void Dispose()
-        {
-            if (IsInitialized)
-                Log.Debug($"Disposing [{GetSensorIdentifier()}]");
-            GC.SuppressFinalize(this);
-        }
-
-        public string GetSensorIdentifier() => this.GetType().Name;
-
-        public bool Initialize(SensorHost sensorHost)
+        public new bool Initialize(SensorHost sensorHost)
         {
             Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
 
@@ -36,7 +20,7 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
-        public bool IsCompatibleWithCurrentRuntime()
+        public new bool IsCompatibleWithCurrentRuntime()
         {
             bool compatible = true;
 
@@ -49,12 +33,12 @@ namespace PC2MQTT.Sensors
             return compatible;
         }
 
-        public void ProcessMessage(MqttMessage mqttMessage)
+        public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Info($"{mqttMessage.GetRawTopic()}: {mqttMessage.message}");
         }
 
-        public void SensorMain()
+        public new void SensorMain()
         {
             Log.Info($"(SensorMain) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
 
@@ -66,19 +50,6 @@ namespace PC2MQTT.Sensors
                 DoNotRetain.
                 QueueMessage.
                 Build());
-        }
-
-        public void ServerStateChange(ServerState state, ServerStateReason reason)
-        {
-            Log.Debug($"ServerStateChange: {state}: {reason}");
-        }
-
-        public void Uninitialize()
-        {
-            if (IsInitialized)
-            {
-                Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
-            }
         }
 
     }

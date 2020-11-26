@@ -5,6 +5,9 @@ namespace PC2MQTT.Sensors
 {
     public interface ISensor : IDisposable
     {
+        /// <summary>
+        /// If we've successfully exited <see cref="Initialize(SensorHost)"/>.
+        /// </summary>
         public bool IsInitialized { get; set; }
 
         public SensorHost sensorHost { get; set; }
@@ -17,9 +20,9 @@ namespace PC2MQTT.Sensors
 
         public bool IsCompatibleWithCurrentRuntime();
 
-        public void ProcessMessage(MqttMessage mqttMessage);
+        public abstract void ProcessMessage(MqttMessage mqttMessage);
 
-        public void SensorMain();
+        public abstract void SensorMain();
 
         public void ServerStateChange(ServerState state, ServerStateReason reason);
 
