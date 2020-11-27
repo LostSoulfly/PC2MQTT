@@ -5,9 +5,8 @@ namespace PC2MQTT.MQTT
 {
     public class MqttMessageBuilder
     {
-        /// <summary>
-        /// Shorthand version of AddDeviceIdToTopic.
-        /// </summary>
+
+        /// <inheritdoc cref="MqttMessage.AddDeviceId"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder AddDeviceId
         {
@@ -18,6 +17,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.AddDeviceIdToTopic"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder AddDeviceIdToTopic
         {
@@ -28,6 +28,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.AddMultiLevelWildcard"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder AddMultiLevelWildcard
         {
@@ -38,6 +39,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.AddSingleLevelWildcard"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder AddSingleLevelWildcard
         {
@@ -48,6 +50,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Specifies not to retain the message. Sets the retain flag to false. This is the default.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder DoNotRetain
         {
@@ -58,6 +63,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.PublishMessage"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder PublishMessage
         {
@@ -68,6 +74,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.QueueMessage"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder QueueMessage
         {
@@ -78,6 +85,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.ReceivedMessage"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder ReceivedMessage
         {
@@ -88,6 +96,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Specifies to the MQTT server to retain this message. Sets the retain flag to true.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder Retain
         {
@@ -98,6 +109,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.SendImmediately"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder SendImmediately
         {
@@ -108,6 +120,7 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <inheritdoc cref="MqttMessage.SubscribeMessage"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder SubscribeMessage
         {
@@ -118,6 +131,8 @@ namespace PC2MQTT.MQTT
             }
         }
 
+
+        /// <inheritdoc cref="MqttMessage.UnsubscribeMessage"/>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessageBuilder UnsubscribeMessage
         {
@@ -130,33 +145,59 @@ namespace PC2MQTT.MQTT
 
         private MqttMessage _mqttMessage;
 
+        /// <summary>
+        /// Initialize a new <see cref="MqttMessageBuilder"/>.
+        /// </summary>
         public MqttMessageBuilder()
         {
             _mqttMessage = new MqttMessage();
         }
 
+        /// <summary>
+        /// Creates a new <see cref="MqttMessage"/> to build using <see cref="MqttMessageBuilder"/>.
+        /// </summary>
+        /// <example>
+        /// <code> 
+        /// var msg = MqttMessageBuilder.
+        /// NewMessage().
+        ///         SubscribeMessage.
+        ///         AddDeviceId.
+        ///         AddTopic("example").
+        ///         AddMultiLevelWildcard.
+        ///         DoNotRetain.
+        ///         QueueMessage.
+        ///         Build();
+        /// </code>
+        /// </example>
         public static MqttMessageBuilder NewMessage()
         {
             return new MqttMessageBuilder();
         }
 
+        /// <inheritdoc cref="MqttMessage.AddTopic"/>
         public MqttMessageBuilder AddTopic(string topic)
         {
             _mqttMessage.AddTopic(topic);
             return this;
         }
 
+        /// <summary>
+        /// Builds and returns a <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <returns></returns>
         public MqttMessage Build()
         {
             return _mqttMessage;
         }
 
+        /// <inheritdoc cref="MqttMessage.SetMessage"/>
         public MqttMessageBuilder SetMessage(string message)
         {
             _mqttMessage.SetMessage(message);
             return this;
         }
 
+        /// <inheritdoc cref="MqttMessage.SetMessageType"/>
         public MqttMessageBuilder SetMessageType(MqttMessageType messageType)
         {
             _mqttMessage.messageType = messageType;

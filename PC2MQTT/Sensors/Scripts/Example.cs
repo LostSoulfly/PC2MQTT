@@ -1,6 +1,4 @@
-﻿//css_ref BadLogger
-
-using BadLogger;
+﻿using BadLogger;
 using PC2MQTT.MQTT;
 using System;
 using System.Collections.Generic;
@@ -11,15 +9,18 @@ using System.Timers;
 namespace PC2MQTT.Sensors
 {
     // Change "Example" to whatever you want your Sensor to be.
-    /// <inheritdoc/>
-    public class Example : SensorBase, PC2MQTT.Sensors.ISensor
+    public class Example : SensorBase, ISensor
     {
+        // Be sure to check out SensorBase.cs for a complete list of methods you can override in your sensors!
+        
+
         // An example timer, see more below in SensorMain()
         private Timer unloadTimer;
 
+        /// <inheritdoc cref="SensorBase.Initialize(SensorHost)"/>
         public new bool Initialize(SensorHost sensorHost)
         {
-            // Initialize BadLogger so we can pass log messages, not required
+            // Initialize BadLogger so we can pass log messages
             Log = LogManager.GetCurrentClassLogger(GetSensorIdentifier());
 
             // You'll want to save this for later in the interface sensorHost object
@@ -80,6 +81,7 @@ namespace PC2MQTT.Sensors
             return true;
         }
 
+        /// <inheritdoc cref="SensorBase.IsCompatibleWithCurrentRuntime"/>
         public new bool IsCompatibleWithCurrentRuntime()
         {
             // Simple way to set compatibility..
@@ -95,6 +97,7 @@ namespace PC2MQTT.Sensors
             return compatible;
         }
 
+        /// <inheritdoc cref="SensorBase.ProcessMessage(MqttMessage)"/>
         public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Info($"[ProcessMessage] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
@@ -110,6 +113,7 @@ namespace PC2MQTT.Sensors
             }
         }
 
+        /// <inheritdoc cref="SensorBase.SensorMain"/>
         public new void SensorMain()
         {
             // We should be in our own thread. Hopefully. I'm still new to threading..
@@ -208,6 +212,7 @@ namespace PC2MQTT.Sensors
             }
         }
 
+        /// <inheritdoc cref="SensorBase.Uninitialize"/>
         public new void Uninitialize()
         {
             // Best to check if it's already been initialized as it may get called a few times to be safe.
@@ -216,9 +221,11 @@ namespace PC2MQTT.Sensors
                 Log.Info($"Uninitializing [{GetSensorIdentifier()}]");
 
                 // Don't need to unsubscribe topcs as it's done by PC2MQTT
-                // this._sensorHost.Unsubscribe("/example/status");
-                // this._sensorHost.Unsubscribe("/example/#");
-                // this._sensorHost.Unsubscribe("/example2/+");
+                // this.sensorHost.Unsubscribe("/example/status");
+                // this.sensorHost.Unsubscribe("/example/#");
+                // this.sensorHost.Unsubscribe("/example2/+");
+                // or simply
+                // this.sensorHost.UnsubscribeAllTopics();
 
                 // stop our timer to prevent any issues!
                 if (unloadTimer != null) unloadTimer.Stop();

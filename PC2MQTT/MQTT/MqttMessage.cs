@@ -6,10 +6,13 @@ namespace PC2MQTT.MQTT
 {
     public class MqttMessage
     {
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         /// <summary>
-        /// This is a shorter version of AddDeviceIdToTopic()
+        /// Add the <see cref="deviceId"/> to the current topic list.
         /// </summary>
+        /// <remarks>
+        /// This is a shorter version of <see cref="AddDeviceIdToTopic"/>
+        /// </remarks>
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage AddDeviceId
         {
             get
@@ -20,6 +23,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Add a multi-level wildcard to the current topic list.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage AddMultiLevelWildcard
         {
@@ -31,6 +37,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Add a single-level wildcard to the current topic list.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage AddSingleLevelWildcard
         {
@@ -42,6 +51,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// This specifies what type of message this <see cref="MqttMessage"/> contains.
+        /// </summary>
         public enum MqttMessageType
         {
             MQTT_NONE = 0,
@@ -51,6 +63,10 @@ namespace PC2MQTT.MQTT
             MQTT_RECEIVED
         }
 
+
+        /// <summary>
+        /// Sets the <see cref="MqttMessageType"/> to <see cref="MqttMessageType.MQTT_PUBLISH"/>.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage PublishMessage
         {
@@ -61,6 +77,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Allow this message to be added to the queue. This is the default behavior. To skip the queue, use <see cref="SendImmediately"/>.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage QueueMessage
         {
@@ -71,6 +90,10 @@ namespace PC2MQTT.MQTT
             }
         }
 
+
+        /// <summary>
+        /// Sets the <see cref="MqttMessageType"/> to <see cref="MqttMessageType.MQTT_RECEIVED"/>.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage ReceivedMessage
         {
@@ -81,6 +104,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Forces the message to skip the queue and be sent immediately.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage SendImmediately
         {
@@ -91,6 +117,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Sets the <see cref="MqttMessageType"/> to <see cref="MqttMessageType.MQTT_SUBSCRIBE"/>.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage SubscribeMessage
         {
@@ -101,6 +130,9 @@ namespace PC2MQTT.MQTT
             }
         }
 
+        /// <summary>
+        /// Sets the <see cref="MqttMessageType"/> to <see cref="MqttMessageType.MQTT_UNSUBSCRIBE"/>.
+        /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public MqttMessage UnsubscribeMessage
         {
@@ -120,11 +152,18 @@ namespace PC2MQTT.MQTT
         private string _rawTopicCache = "";
         private List<string> topicList;
 
+        /// <summary>
+        /// Creates a new <see cref="MqttMessage"/>.
+        /// </summary>
         public MqttMessage()
         {
             topicList = new List<string>();
         }
 
+        /// <summary>
+        /// Add the <see cref="deviceId"/> as a new topic level.
+        /// </summary>
+        /// <returns></returns>
         public MqttMessage AddDeviceIdToTopic()
         {
             this.AddTopic(deviceId);
@@ -132,6 +171,11 @@ namespace PC2MQTT.MQTT
             return this;
         }
 
+        /// <summary>
+        /// Add an additional topic level. Can add multiple topic levels if separated by a slash '/'.
+        /// </summary>
+        /// <param name="topic"></param>
+        /// <returns></returns>
         public MqttMessage AddTopic(string topic)
         {
             if (topic.Length == 0)
@@ -156,11 +200,19 @@ namespace PC2MQTT.MQTT
             return this;
         }
 
+        /// <summary>
+        /// Retrieves the deviceId.
+        /// </summary>
+        /// <returns></returns>
         public string GetDeviceId()
         {
             return deviceId;
         }
 
+        /// <summary>
+        /// Retrieves the <see cref="message"/> for this <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <returns></returns>
         public string GetMessage()
         {
             return message;
@@ -171,16 +223,29 @@ namespace PC2MQTT.MQTT
             return messageId;
         }
 
+        /// <summary>
+        /// Returns the raw topic for this <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <returns>Full, unmodified topic string</returns>
         public string GetRawTopic()
         {
             return _rawTopicCache;
         }
 
+        /// <summary>
+        /// Retrieve the <see cref="MqttMessage"/> topic without <see cref="deviceId"/>.
+        /// </summary>
+        /// <returns>Topic string without prepended <see cref="deviceId"/></returns>
         public string GetTopicWithoutDeviceId()
         {
             return GetRawTopic().RemoveDeviceId();
         }
 
+        /// <summary>
+        /// Sets the <see cref="message"/> data for this <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public MqttMessage SetMessage(string message)
         {
             this.message = message;
@@ -195,13 +260,22 @@ namespace PC2MQTT.MQTT
             return this;
         }
 
+        /// <summary>
+        /// Sets the <see cref="MqttMessageType"/> for this <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <param name="messageType"></param>
+        /// <returns></returns>
         public MqttMessage SetMessageType(MqttMessageType messageType)
         {
             this.messageType = messageType;
 
             return this;
         }
-
+        /// <summary>
+        /// Sets the retain flag for this <see cref="MqttMessage"/>.
+        /// </summary>
+        /// <param name="retain"></param>
+        /// <returns></returns>
         public MqttMessage SetRetainFlag(bool retain)
         {
             this.retain = retain;
@@ -210,18 +284,23 @@ namespace PC2MQTT.MQTT
         }
 
         /// <summary>
-        /// Clears the current topic and replaces it.
+        /// Clears the current topic and replaces it for this <see cref="MqttMessage"/>. Leaving <paramref name="topic"/> empty will clear the current topic.
         /// </summary>
         /// <param name="topic"></param>
-        /// <returns></returns>
-        public MqttMessage SetTopic(string topic)
+        /// <remarks>Be sure to use the proper/topic/format here!</remarks>
+        public MqttMessage SetTopic(string topic = "")
         {
             topicList.Clear();
-            this.AddTopic(topic);
+
+            if (topic.Length != 0)
+                this.AddTopic(topic);
 
             return this;
         }
 
+        /// <summary>
+        /// Update the <see cref="_rawTopicCache"/> based on the current <see cref="topicList"/> contents.
+        /// </summary>
         private void UpdateRawTopicCache()
         {
             _rawTopicCache = string.Join("/", topicList);

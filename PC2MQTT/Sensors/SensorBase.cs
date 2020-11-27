@@ -7,13 +7,14 @@ using System.Text;
 namespace PC2MQTT.Sensors
 {
     /// <summary>
-    /// This is the BASE sensor class, inheriting ISensor.
-    /// You can override these methods or leave them alone.
+    /// This is the BASE sensor class, inheriting from ISensor.
+    /// You can override these methods (with the 'new' keyword) or simply not include them in your sensor to retain their default functionality.
     /// </summary>
     public partial class SensorBase : ISensor
     {
-        /// <inheritdoc/>
-
+        /// <summary>
+        /// If the sensor was initialized properly from <see cref="Initialize(SensorHost)"/>.
+        /// </summary>
         public bool IsInitialized { get; set; }
 
         /// <summary>
@@ -24,7 +25,7 @@ namespace PC2MQTT.Sensors
         /// <summary>
         /// My own terrible logger so we can pass log messages.
         /// </summary>
-        internal BadLogger.BadLogger Log;
+        public BadLogger.BadLogger Log;
 
         /// <summary>
         /// This should always return true. This is a simple test to see if the sensor was loaded properly.
@@ -75,7 +76,7 @@ namespace PC2MQTT.Sensors
         }
 
         /// <summary>
-        /// This is called by the <see cref="sensorHost"/> to verify if the current OS/Runtime is supported by the sensor.
+        /// This is called by the <see cref="SensorHost"/> to verify if the current OS/Runtime is supported by the sensor.
         /// Return false if your sensor is not going to work properly.
         /// </summary>
         /// <returns>Returns true by default.</returns>

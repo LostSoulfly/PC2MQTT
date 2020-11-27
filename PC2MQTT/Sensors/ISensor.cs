@@ -5,9 +5,6 @@ namespace PC2MQTT.Sensors
 {
     public interface ISensor : IDisposable
     {
-        /// <summary>
-        /// If we've successfully exited <see cref="Initialize(SensorHost)"/>.
-        /// </summary>
         public bool IsInitialized { get; set; }
 
         public SensorHost sensorHost { get; set; }

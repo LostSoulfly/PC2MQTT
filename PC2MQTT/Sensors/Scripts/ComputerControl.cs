@@ -6,7 +6,6 @@ namespace PC2MQTT.Sensors
 {
     public class ComputerControl : SensorBase, PC2MQTT.Sensors.ISensor
     {
-
         public new void ProcessMessage(MqttMessage mqttMessage)
         {
             Log.Info($"[ProcessMessage] Processing topic [{mqttMessage.GetRawTopic()}]: {mqttMessage.message}");
