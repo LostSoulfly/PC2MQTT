@@ -5,6 +5,7 @@ using PC2MQTT.Sensors;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PC2MQTT
 {
@@ -48,25 +49,25 @@ namespace PC2MQTT
 
         private static void Client_MessagePublished(MqttMessage mqttMessage)
         {
-            Log.Trace($"Message published for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            Log.Verbose($"Message published for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 
         private static void Client_MessageReceivedString(MqttMessage mqttMessage)
         {
-            Log.Trace($"Message received for [{mqttMessage.GetTopicWithoutDeviceId()}]: {mqttMessage.message}");
+            Log.Verbose($"Message received for [{mqttMessage.GetTopicWithoutDeviceId()}]: {mqttMessage.message}");
             sensorManager.ProcessMessage(mqttMessage);
         }
 
         private static void Client_TopicSubscribed(MqttMessage mqttMessage)
         {
-            Log.Trace($"Topic subscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            Log.Verbose($"Topic subscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 
         private static void Client_TopicUnsubscribed(MqttMessage mqttMessage)
         {
-            Log.Trace($"Topic Unsubscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
+            Log.Verbose($"Topic Unsubscribed for {mqttMessage.GetRawTopic()}: [{mqttMessage.message}]");
             //throw new NotImplementedException();
         }
 
@@ -100,16 +101,20 @@ namespace PC2MQTT
             client.MqttConnect();
         }
 
-        private static void InitializeSensors(bool useOnlyBuiltInSensors = true)
+        private static void InitializeSensors(bool useOnlyBuiltInSensors = true, Task roslynLoading = null)
         {
             sensorManager = new SensorManager(client, settings);
 
             List<string> available = new List<string>();
 
+            while (roslynLoading != null && !roslynLoading.IsCompleted)
+            {
+                Log.Verbose("Rosling still pre-loading..");
+                Thread.Sleep(50);
+            }
+
             if (!useOnlyBuiltInSensors)
             {
-                CSScriptLib.RoslynEvaluator.LoadCompilers();
-
                 available.AddRange(sensorManager.LoadSensorScripts());
 
                 foreach (var item in sensorManager.LoadBuiltInSensors())
@@ -152,9 +157,21 @@ namespace PC2MQTT
             Logging.InitializeLogging(settings);
             Log = LogManager.GetCurrentClassLogger("PC2MQTT");
 
+            Task roslynLoading = null;
+
+            if (!settings.config.useOnlyBuiltInSensors)
+            {
+                roslynLoading = Task.Run(() =>
+                {
+                    Log.Verbose("Pre-loading Roslyn compiler..");
+                    CSScriptLib.RoslynEvaluator.LoadCompilers();
+                    Log.Verbose("Roslyn finished loading.");
+                });
+            }
+
             InitializeMqtt();
 
-            InitializeSensors(settings.config.useOnlyBuiltInSensors);
+            InitializeSensors(settings.config.useOnlyBuiltInSensors, roslynLoading);
             sensorManager.StartSensors();
 
             Console.CancelKeyPress += new ConsoleCancelEventHandler(OnExit);

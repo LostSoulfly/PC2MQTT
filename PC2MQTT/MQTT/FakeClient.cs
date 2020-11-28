@@ -75,7 +75,7 @@ namespace PC2MQTT.MQTT
         {
             var success = SometimesFalse();
 
-            if (!success) Log.Trace($"Randomly failing Publish call for {message.GetRawTopic()}: {message.message}");
+            if (!success) Log.Verbose($"Randomly failing Publish call for {message.GetRawTopic()}: {message.message}");
 
             if (success)
             {
@@ -125,7 +125,7 @@ namespace PC2MQTT.MQTT
             //System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Subscribe call for {message.GetRawTopic()}");
+            if (!success) Log.Verbose($"Randomly failing Subscribe call for {message.GetRawTopic()}");
 
             if (success)
             {
@@ -142,7 +142,7 @@ namespace PC2MQTT.MQTT
             //System.Threading.Thread.Sleep(GetRandom(250));
 
             var success = SometimesFalse();
-            if (!success) Log.Trace($"Randomly failing Unubscribe call for {message.GetRawTopic()}");
+            if (!success) Log.Verbose($"Randomly failing Unubscribe call for {message.GetRawTopic()}");
 
             if (success)
             {
@@ -179,12 +179,12 @@ namespace PC2MQTT.MQTT
 
         private void ProcessMessageQueue()
         {
-            Log.Trace("Starting Message Queue Processing..");
+            Log.Verbose("Starting Message Queue Processing..");
             while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
             {
                 var msg = _messageQueue.Take();
 
-                Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                Log.Verbose($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
                 System.Threading.Thread.Sleep(GetRandom(500));
                 ProcessMessage(msg);
             }

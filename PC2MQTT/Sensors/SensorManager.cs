@@ -61,21 +61,27 @@ namespace PC2MQTT.Sensors
 
         public void InitializeSensors(List<string> enabledSensors)
         {
-            Log.Trace("Initializing sensors..");
+            Log.Verbose("Initializing sensors..");
 
             foreach (var item in sensors)
             {
-                Task.Run(() =>
+                if ((enabledSensors.Contains("*") || enabledSensors.Contains(item.Value.SensorIdentifier)))
+                { 
+                    _ = Task.Run(() =>
+                      {
+                          if (item.Value.InitializeSensor())
+                          {
+                              Log.Info($"Initialized sensor: [{item.Value.SensorIdentifier}]");
+                          }
+                          else
+                          {
+                              Log.Debug($"[{item.Value.SensorIdentifier}] did not initialize properly.");
+                          }
+                      });
+                } else
                 {
-                    if ((enabledSensors.Contains("*") || enabledSensors.Contains(item.Value.SensorIdentifier)) && item.Value.InitializeSensor())
-                    {
-                        Log.Info($"Initialized sensor: [{item.Value.SensorIdentifier}]");
-                    }
-                    else
-                    {
-                        Log.Debug($"Skipping sensor: [{item.Value.SensorIdentifier}]");
-                    }
-                });
+                    Log.Debug($"Skipping sensor: [{item.Value.SensorIdentifier}]");
+                }
             }
         }
 
@@ -97,7 +103,7 @@ namespace PC2MQTT.Sensors
 
             var sensorFiles = Directory.GetFiles("sensors/", "*.cs").ToList();
 
-            Log.Info("Compiling sensor files. To skip set useOnlyBuiltInSensors in config.json");
+            Log.Debug("Compiling sensor files. To skip set useOnlyBuiltInSensors in config.json");
             foreach (var item in sensorFiles)
             {
                 //Task<SensorHost> t;
@@ -152,7 +158,7 @@ namespace PC2MQTT.Sensors
             {
                 if (item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                 {
-                    Log.Trace($"Notifying [{item.Value.SensorIdentifier}] of MQTT server status change");
+                    Log.Verbose($"Notifying [{item.Value.SensorIdentifier}] of MQTT server status change");
                     item.Value.sensor.ServerStateChange(state, reason);
                 }
             }
@@ -164,7 +170,7 @@ namespace PC2MQTT.Sensors
 
             if (sensorTopics.TryGetValue(mqttMessage.GetRawTopic(), out sensorHost))
             {
-                Log.Trace($"[NW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{sensorHost.SensorIdentifier}]");
+                Log.Verbose($"[NW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{sensorHost.SensorIdentifier}]");
                 sensorHost.sensor.ProcessMessage(mqttMessage);
 
                 // Found a basic topic, no need to search the wildcards
@@ -193,7 +199,7 @@ namespace PC2MQTT.Sensors
 
                     if (wildcardFound)
                     {
-                        Log.Trace($"[MW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
+                        Log.Verbose($"[MW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(mqttMessage);
                     }
                 }
@@ -214,7 +220,7 @@ namespace PC2MQTT.Sensors
 
                     if (i == wildcardTopic.Count() - 1)
                     {
-                        Log.Trace($"[SW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
+                        Log.Verbose($"[SW] Sending message for topic [{mqttMessage.GetRawTopic()}] to [{item.Value.SensorIdentifier}]");
                         item.Value.sensor.ProcessMessage(mqttMessage);
                     }
                 }
@@ -362,12 +368,12 @@ namespace PC2MQTT.Sensors
 
                         if (item.Value != null && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
                         {
-                            Log.Trace($"StartSensor sensor: [{item.Value.SensorIdentifier}]");
+                            Log.Verbose($"StartSensor sensor: [{item.Value.SensorIdentifier}]");
                             item.Value.sensor.SensorMain();
                         }
                         else
                         {
-                            Log.Trace("Sensor is null, not compiled, or uninitialized. Skipping.");
+                            Log.Verbose("Sensor is null, not compiled, or uninitialized. Skipping.");
                         }
                     });
             }
@@ -378,6 +384,8 @@ namespace PC2MQTT.Sensors
 
         private SensorHost LoadSensor(string filePath)
         {
+            Log.Verbose($"Loading sensor [{Path.GetFileName(filePath)}]");
+
             var s = new SensorHost(_client, this);
             s.LoadFromFile(filePath);
 
@@ -398,7 +406,7 @@ namespace PC2MQTT.Sensors
 
         private void SensorCleanupTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            Log.Trace("Starting a clean of uncompiled sensors");
+            Log.Verbose("Starting a clean of uncompiled sensors");
 
             foreach (var item in sensors)
             {

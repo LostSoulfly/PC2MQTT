@@ -159,7 +159,7 @@ namespace PC2MQTT.MQTT
         /// <example>
         /// <code> 
         /// var msg = MqttMessageBuilder.
-        /// NewMessage().
+        ///         NewMessage().
         ///         SubscribeMessage.
         ///         AddDeviceId.
         ///         AddTopic("example").

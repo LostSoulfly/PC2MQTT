@@ -244,14 +244,14 @@ namespace PC2MQTT.MQTT
 
         private void ProcessMessageQueue()
         {
-            Log.Trace("Starting Message Queue Processing..");
+            Log.Verbose("Starting Message Queue Processing..");
             while (!_queueCancellationTokenSource.Token.IsCancellationRequested)
             {
                 if (client.IsConnected)
                 {
                     var msg = _messageQueue.Take();
 
-                    Log.Trace($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
+                    Log.Verbose($"Process msg queue: [{msg.messageType}] {msg.GetRawTopic()}: {msg.message}");
                     ProcessMessage(msg);
                 }
                 else

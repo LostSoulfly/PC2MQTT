@@ -159,7 +159,7 @@ namespace PC2MQTT.Sensors
                 return true;
             }
 
-            Log.Trace($"[{SensorIdentifier}] publishing to [{mqttMessage.GetRawTopic()}]: [{mqttMessage.message}]");
+            Log.Verbose($"[{SensorIdentifier}] publishing to [{mqttMessage.GetRawTopic()}]: [{mqttMessage.message}]");
 
             var success = _client.Publish(mqttMessage);
 
@@ -218,7 +218,7 @@ namespace PC2MQTT.Sensors
             }
 
             var success = _client.SendMessage(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] sending message for [{mqttMessage.GetRawTopic()}]");
+            Log.Verbose($"[{SensorIdentifier}] sending message for [{mqttMessage.GetRawTopic()}]");
 
             if (success.messageId > 0)
             {
@@ -251,7 +251,7 @@ namespace PC2MQTT.Sensors
             }
 
             var success = _client.Subscribe(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] subscribing to [{mqttMessage.GetRawTopic()}]");
+            Log.Verbose($"[{SensorIdentifier}] subscribing to [{mqttMessage.GetRawTopic()}]");
 
             if (success.messageId > 0)
             {
@@ -287,7 +287,7 @@ namespace PC2MQTT.Sensors
             }
 
             var success = _client.Unsubscribe(mqttMessage);
-            Log.Trace($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
+            Log.Verbose($"[{SensorIdentifier}] unsubscribing to [{mqttMessage.GetRawTopic()}] ({success})");
 
             if (success.messageId > 0)
             {
@@ -321,7 +321,7 @@ namespace PC2MQTT.Sensors
 
             if (this.code.Contains(ns))
             {
-                Log.Trace("Sensor script contains a namespace. Attempting to remove it..");
+                Log.Verbose("Sensor script contains a namespace. Attempting to remove it..");
 
                 var nsLocation = this.code.IndexOf(ns);
                 this.code = this.code.Remove(nsLocation, ns.Length);
