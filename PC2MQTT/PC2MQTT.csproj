@@ -7,6 +7,10 @@
 	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies> 
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>false</Optimize>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="CS-Script.Core" Version="1.4.0" />
     <PackageReference Include="M2MqttDotnetCore" Version="1.1.0" />
@@ -24,7 +28,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="mkdir $(TargetDir)Sensors\&#xD;&#xA;copy $(ProjectDir)Sensors\Scripts\*.cs $(TargetDir)Sensors\*&#xD;&#xA;copy $(ProjectDir)Sensors\Scripts\*.cs $(TargetDir)Sensors\*" />
+    <Exec Command="mkdir $(TargetDir)Sensors\&#xD;&#xA;copy $(ProjectDir)Sensors\Scripts\*.cs $(TargetDir)Sensors\*" />
   </Target>
 
 </Project>

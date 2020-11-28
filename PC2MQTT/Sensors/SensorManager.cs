@@ -70,17 +70,14 @@ namespace PC2MQTT.Sensors
                     _ = Task.Run(() =>
                       {
                           if (item.Value.InitializeSensor())
-                          {
                               Log.Info($"Initialized sensor: [{item.Value.SensorIdentifier}]");
-                          }
                           else
-                          {
-                              Log.Debug($"[{item.Value.SensorIdentifier}] did not initialize properly.");
-                          }
+                              Log.Warn($"[{item.Value.SensorIdentifier}] did not initialize properly.");
                       });
-                } else
+                } 
+                else
                 {
-                    Log.Debug($"Skipping sensor: [{item.Value.SensorIdentifier}]");
+                    Log.Verbose($"Skipping sensor: [{item.Value.SensorIdentifier}]");
                 }
             }
         }
@@ -247,8 +244,6 @@ namespace PC2MQTT.Sensors
 
         public void UnmapAlltopics(SensorHost sensorHost)
         {
-            Log.Debug($"Unmapping and unsubscribing to all topics for [{sensorHost.SensorIdentifier}]");
-
             foreach (var item in sensorTopics)
             {
                 if (item.Value == sensorHost && item.Value.IsCompiled && item.Value.sensor.IsInitialized)
@@ -344,7 +339,7 @@ namespace PC2MQTT.Sensors
                         var s = new SensorHost((ISensor)ass.CreateInstance(ti.FullName), _client, this);
 
                         if (s != null && !this.sensors.TryAdd(s.SensorIdentifier, s))
-                            Log.Debug($"Skipping built-in sensor [{s.SensorIdentifier}]");
+                            Log.Verbose($"Skipping built-in sensor [{s.SensorIdentifier}]");
 
                         return s;
                     }));
@@ -408,6 +403,8 @@ namespace PC2MQTT.Sensors
         {
             Log.Verbose("Starting a clean of uncompiled sensors");
 
+            bool didClean = false;
+
             foreach (var item in sensors)
             {
                 if (!item.Value.IsCompiled || !item.Value.sensor.IsInitialized)
@@ -416,11 +413,16 @@ namespace PC2MQTT.Sensors
                     item.Value.Dispose();
                     sensors.Remove(item.Key, out var s);
                     DisposeSensorHost(item.Value);
-                    var before = System.GC.GetTotalMemory(false);
-                    var after = System.GC.GetTotalMemory(true);
-
-                    Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
+                    didClean = true;
                 }
+            }
+
+            if (didClean)
+            {
+                var before = System.GC.GetTotalMemory(false);
+                var after = System.GC.GetTotalMemory(true);
+
+                Log.Debug($"Recovered {(before - after).ToReadableFileSize()} of memory.");
             }
         }
     }
