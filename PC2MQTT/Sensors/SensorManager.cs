@@ -63,23 +63,29 @@ namespace PC2MQTT.Sensors
         {
             Log.Verbose("Initializing sensors..");
 
+            var tasks = new List<Task>();
+
             foreach (var item in sensors)
             {
                 if ((enabledSensors.Contains("*") || enabledSensors.Contains(item.Value.SensorIdentifier)))
                 { 
-                    _ = Task.Run(() =>
+                    tasks.Add(Task.Run(() =>
                       {
                           if (item.Value.InitializeSensor())
                               Log.Info($"Initialized sensor: [{item.Value.SensorIdentifier}]");
                           else
                               Log.Warn($"[{item.Value.SensorIdentifier}] did not initialize properly.");
-                      });
+                      }));
                 } 
                 else
                 {
                     Log.Verbose($"Skipping sensor: [{item.Value.SensorIdentifier}]");
                 }
             }
+
+
+            Log.Debug("Waiting for all sensors to finish initializing..");
+            Task.WaitAll(tasks.ToArray());
         }
 
         public List<string> LoadSensorScripts()
@@ -110,7 +116,7 @@ namespace PC2MQTT.Sensors
                 //availableSensors.Add(t.Result.SensorIdentifier);
             }
 
-            Log.Debug("Waiting for all sensors to finish loading..");
+            Log.Debug("Waiting for all sensors to finish initializing..");
             Task.WaitAll(tasks.ToArray());
 
             availableSensors.AddRange(tasks.Select(item => item.Result.SensorIdentifier).Where(ident => ident != null));
