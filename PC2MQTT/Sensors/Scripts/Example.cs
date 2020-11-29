@@ -26,8 +26,8 @@ namespace PC2MQTT.Sensors
             // You'll want to save this for later in the interface sensorHost object
             this.sensorHost = sensorHost;
 
-            Log.Debug($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-            Log.Debug($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
+            Log.Info($"(Initialize) CPU id: {System.Threading.Thread.GetCurrentProcessorId()} ThreadId: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            Log.Info($"IsLinux: {CSScriptLib.Runtime.IsLinux} IsWin: {CSScriptLib.Runtime.IsWin} IsCore: { CSScriptLib.Runtime.IsCore} IsMono: {CSScriptLib.Runtime.IsMono} IsNet: {CSScriptLib.Runtime.IsNet}");
 
             // Initialize needs to return true relatively quickly but you can stall for a while or run processor-intensive things beforehand.
             // Control is returned to the sensor in SensorMain after initialization is complete.
@@ -52,7 +52,7 @@ namespace PC2MQTT.Sensors
             // This one will succeed because it has a default value supplied.
             var stringResult3 = sensorHost.LoadData("test3", "test3", type: typeof(string));
 
-            Log.Debug("Load Data [test] result: " + stringResult1);
+            Log.Info("Load Data [test] result: " + stringResult1);
 
             // Can also use other data types such as collections
             List<string> testList = new List<string>();
@@ -69,7 +69,7 @@ namespace PC2MQTT.Sensors
             // For this data, however, we need to pass the type otherwise it returns a JArray.
             List<string> resultList = sensorHost.LoadData("testList", global: false, type: typeof(List<string>));
 
-            Log.Debug($"Load Data [testList] result: Count:{resultList.Count}  [{String.Join(" ", resultList)}]");
+            Log.Info($"Load Data [testList] result: Count:{resultList.Count}  [{String.Join(" ", resultList)}]");
 
             System.Threading.Thread.Sleep(5000);
             Log.Info($"Finishing initialization in {this.GetSensorIdentifier()}");
