@@ -109,7 +109,7 @@ namespace PC2MQTT
 
             while (roslynLoading != null && !roslynLoading.IsCompleted)
             {
-                Log.Verbose("Rosling still pre-loading..");
+                Log.Verbose("Roslyn still pre-loading..");
                 Thread.Sleep(50);
             }
 
