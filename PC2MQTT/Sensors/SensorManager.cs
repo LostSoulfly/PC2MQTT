@@ -338,7 +338,7 @@ namespace PC2MQTT.Sensors
 
             foreach (System.Reflection.TypeInfo ti in ass.DefinedTypes)
             {
-                if (ti.ImplementedInterfaces.Contains(typeof(ISensor)))
+                if (ti.ImplementedInterfaces.Contains(typeof(ISensor)) && ti.Name != "SensorBase")
                 {
                     tasks.Add(Task.Run(() =>
                     {
